@@ -626,15 +626,30 @@ function App() {
             <span aria-hidden="true"> x</span>
           </button>
         )}
-        <a
-          className="status-link"
-          href="https://fontawesome.com/v7/search?ic=free-collection"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Search Font Awesome 7 Free icons (opens in a new tab)"
-        >
-          Font Awesome 7 icons
-        </a>
+        <nav className="status-links" aria-label="Design resources">
+          <a
+            href="https://fontawesome.com/v7/search?ic=free-collection"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Search Font Awesome 7 Free icons (opens in a new tab)"
+          >
+            Icons
+          </a>
+          <a
+            href="https://developer.mozilla.org/en-US/docs/Web/CSS"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            CSS
+          </a>
+          <a
+            href="https://fonts.google.com/?preview.script=Latn"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Fonts
+          </a>
+        </nav>
       </footer>
     </main>
   )

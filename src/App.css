@@ -522,16 +522,30 @@
   color: #fda4af;
 }
 
-.status-link {
+.status-links {
+  display: flex;
   flex-shrink: 0;
+  gap: 12px;
   margin-left: auto;
+}
+
+.status-links a {
   color: var(--accent);
   text-decoration: none;
 }
 
-.status-link:hover,
-.status-link:focus-visible {
+.status-links a:hover,
+.status-links a:focus-visible {
   text-decoration: underline;
+}
+
+.font-status {
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {

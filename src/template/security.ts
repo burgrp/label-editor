@@ -156,7 +156,7 @@ export function validateCssSafety(css: string): readonly TemplateDiagnostic[] {
   return diagnostics
 }
 
-function decodeCssEscapes(css: string): string {
+export function decodeCssEscapes(css: string): string {
   return css.replace(
     /\\([0-9a-f]{1,6}\s?|[\s\S])/gi,
     (_escape, value: string) => {

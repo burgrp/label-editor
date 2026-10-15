@@ -13,6 +13,7 @@ preview is sent to the printer.
 - Standard quoted CSV records with cursor-driven selected-row preview.
 - Escaped zero-based placeholders such as `{{0}}` and `{{1}}`.
 - Per-record CSS classes and bundled Font Awesome Free icons.
+- Automatic Google Fonts loading from CSS, with local caching and print embedding.
 - Selected-label and continuous whole-strip preview with optional label wrapping
   and grab-to-pan scrolling.
 - Physical 3.5, 6, 9, and 12 mm tape sizing at 180 DPI.
@@ -139,8 +140,8 @@ Use the normal icon classes directly in the HTML template:
 <i class="fa-brands fa-github" aria-hidden="true"></i>
 ```
 
-The **Font Awesome 7 icons** link at the bottom right opens the matching Free
-icon search in a new tab.
+The bottom-right **Icons**, **CSS**, and **Fonts** links open Font Awesome 7 Free
+icon search, MDN's CSS documentation, and Google Fonts in new tabs.
 
 Set icon size with CSS (for example `.fa-solid { font-size: 16pt; }`) or Font
 Awesome size classes such as `fa-2x`. A field can also supply icon classes with
@@ -152,6 +153,48 @@ Only Free icons are included; Pro styles and icons are not bundled. Font
 Awesome is by Fonticons, Inc.; its fonts are licensed under SIL OFL 1.1 and CSS
 under MIT. The production build includes `fontawesome-license.txt` with the
 upstream notices and licenses.
+
+### Automatic Google Fonts
+
+Write the preferred font family directly in CSS. The app resolves the actual
+styles used by label text, including inherited styles, custom properties,
+`font` shorthand, and `::before`/`::after` content:
+
+```css
+.label {
+  font-family: "Roboto Condensed", sans-serif;
+  font-weight: 400;
+}
+
+.heading {
+  font-weight: 700;
+}
+```
+
+Named preferred families that are not system, locally installed, or bundled
+Font Awesome fonts are looked up in Google Fonts automatically. Only used
+weights and normal/italic styles are requested; fallback families are not
+downloaded. Hidden content does not trigger downloads.
+
+The preview shows font loading, ready, or failure status. Rendering and printing
+wait until fonts are loaded, and failed or unknown fonts do not silently print
+with a fallback. Correct the family/weight or restore connectivity to retry.
+
+Downloaded font files are embedded as data URLs in both the isolated layout and
+the captured raster, alongside Font Awesome. The app caches them for the session
+and, when Cache Storage is available, across reloads. Cache failures are shown
+as warnings without preventing an otherwise valid render.
+
+Initial downloads contact only `fonts.googleapis.com` and `fonts.gstatic.com`,
+without credentials, a referrer, or Google's `text=` parameter. CSV and template
+text are never sent to Google. Subsequent renders can use cached fonts offline;
+a new uncached family or weight still requires internet access. Clearing this
+site's browser storage removes the persistent font cache.
+
+Template JSON files retain the CSS family names, not font binaries. Recipients
+download/cache the fonts on first use. Arbitrary CSS `@import` and remote URLs
+remain blocked: only the application's explicit Google Fonts loader can fetch
+font assets.
 
 ## Loading data and sharing templates
 

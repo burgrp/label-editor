@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { serializeRasterColumn } from '../src/printer/protocol'
 import { packRasterColumns, rgbaToPrintHeadRaster } from '../src/render/raster'
+import { mockGoogleFonts } from './helpers/googleFonts'
 
 test('explains when browser printing is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
@@ -134,19 +135,20 @@ test('prints one continuous job even when the preview wraps labels', async ({
 })
 
 for (const mode of ['selected', 'strip'] as const) {
-  test(`prints class-styled ${mode} labels with the same raster as preview`, async ({
+  test(`prints class-styled ${mode} labels with Google Fonts and icons matching preview`, async ({
     page,
   }) => {
     await installSuccessfulSerialMock(page, 12)
+    await mockGoogleFonts(page)
     await page.goto('/')
     await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
       name: 'classes.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({
         version: 1,
-        template: '<i class="fa-solid fa-house" aria-hidden="true"></i>',
+        template: '<i class="fa-solid fa-house" aria-hidden="true"></i><span>&#xf111;</span>',
         css: [
-          '.label { width: 40mm; font-size: 20pt; }',
+          '.label { width: 40mm; font: 20pt "Label Print Font"; }',
           '.label.compact { width: 20mm; }',
           '.label.wide { width: 30mm; }',
         ].join('\n'),
@@ -162,6 +164,7 @@ for (const mode of ['selected', 'strip'] as const) {
     })
 
     const canvas = page.getByLabel('Monochrome label preview', { exact: true })
+    await expect(page.locator('.font-status')).toContainText('Fonts ready: Label Print Font')
     await expect(canvas).toHaveAttribute('width', mode === 'selected' ? '143' : '354')
     const preview = await canvas.evaluate((element) => {
       if (!(element instanceof HTMLCanvasElement)) {
@@ -209,6 +212,39 @@ for (const mode of ['selected', 'strip'] as const) {
     expect(columns).toEqual(expected)
   })
 }
+
+test('does not send a print job when its Google font fails to load', async ({ page }) => {
+  await installSuccessfulSerialMock(page, 12)
+  await page.route('https://fonts.googleapis.com/**', (route) =>
+    route.fulfill({ status: 400, body: 'Unknown font' }),
+  )
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Connect printer' }).click()
+  await expect(page.getByRole('button', { name: 'Disconnect' })).toBeEnabled()
+  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+    name: 'missing-font.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      template: '<span>Never print with a fallback</span>',
+      css: '.label{width:30mm;font:12pt "Missing Print Font"}',
+      previewMode: 'selected',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  await expect(page.locator('.font-status')).toHaveText('Fonts failed')
+  const countBefore = await page.evaluate(() =>
+    (window as typeof window & { __serialMock: { writes: number[][] } }).__serialMock.writes.length,
+  )
+  await page.getByRole('button', { name: 'Print current' }).click()
+  await expect(page.locator('.notice.error')).toContainText('Could not load Google font')
+  const countAfter = await page.evaluate(() =>
+    (window as typeof window & { __serialMock: { writes: number[][] } }).__serialMock.writes.length,
+  )
+  expect(countAfter).toBe(countBefore)
+  await expect(page.getByRole('button', { name: 'Disconnect' })).toBeEnabled()
+})
 
 async function installSuccessfulSerialMock(
   page: Page,

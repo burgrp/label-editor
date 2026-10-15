@@ -10,6 +10,7 @@ import {
   type RenderedLabels,
 } from '../render/renderLabels'
 import { dotsToMm, mmToDots } from '../render/raster'
+import { FontLoadingError } from '../render/googleFonts'
 
 const PREVIEW_MODE_LABELS: Record<PreviewMode, string> = {
   selected: 'Selected row',
@@ -30,9 +31,9 @@ interface PreviewPaneProps {
 
 type PreviewState =
   | { status: 'idle' }
-  | { status: 'loading' }
+  | { status: 'loading'; fontMessage?: string }
   | { status: 'ready'; rendered: RenderedLabels }
-  | { status: 'error'; message: string }
+  | { status: 'error'; message: string; fontError: boolean }
 
 interface PanOrigin {
   pointerId: number
@@ -73,6 +74,11 @@ export function PreviewPane({
         tapeWidthMm,
         threshold,
         signal: controller.signal,
+        onFontLoading: (fontMessage) => {
+          if (!controller.signal.aborted) {
+            setState({ status: 'loading', fontMessage })
+          }
+        },
       })
         .then((rendered) => {
           if (controller.signal.aborted) {
@@ -88,6 +94,7 @@ export function PreviewPane({
           setState({
             status: 'error',
             message: error instanceof Error ? error.message : String(error),
+            fontError: error instanceof FontLoadingError,
           })
         })
     }, 180)
@@ -173,6 +180,16 @@ export function PreviewPane({
           </p>
         </div>
         <div className="preview-controls">
+          <span className="font-status" role="status">
+            {state.status === 'loading' && state.fontMessage
+              ? state.fontMessage
+              : state.status === 'error' && state.fontError
+                ? 'Fonts failed'
+                : state.status === 'ready' && state.rendered.fontFamilies.length > 0
+                  ? state.rendered.fontWarning ??
+                    `Fonts ready: ${state.rendered.fontFamilies.join(', ')}`
+                  : ''}
+          </span>
           <fieldset className="segmented-control">
             <legend>Preview mode</legend>
             {PREVIEW_MODES.map((mode) => (
@@ -211,7 +228,7 @@ export function PreviewPane({
         {blockedMessage ? (
           <PreviewMessage title="Preview unavailable" message={blockedMessage} />
         ) : state.status === 'loading' ? (
-          <PreviewMessage title="Rendering" message="Updating the print raster..." />
+          <PreviewMessage title="Rendering" message={state.fontMessage ?? 'Updating the print raster...'} />
         ) : state.status === 'error' ? (
           <PreviewMessage title="Rendering failed" message={state.message} error />
         ) : state.status === 'ready' ? (

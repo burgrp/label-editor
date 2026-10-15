@@ -1,6 +1,7 @@
 import { toCanvas } from 'html-to-image'
 import type { TapeWidthMm } from '../model/document'
 import { FONT_AWESOME_CSS, FONT_AWESOME_FONT_CSS } from './fontAwesome'
+import { FontLoadingError, resolveGoogleFonts } from './googleFonts'
 import {
   MAX_PRINT_LENGTH_MM,
   dotsToMm,
@@ -23,12 +24,15 @@ export interface RenderLabelsRequest {
   tapeWidthMm: TapeWidthMm
   threshold: number
   signal?: AbortSignal
+  onFontLoading?: (message: string) => void
 }
 
 export interface RenderedLabels {
   raster: MonochromeRaster
   segmentEnds: readonly number[]
   lengthMm: number
+  fontFamilies: readonly string[]
+  fontWarning?: string
 }
 
 export async function renderLabels(
@@ -79,7 +83,23 @@ export async function renderLabels(
       strip.append(segment)
     }
 
+    const fonts = await resolveGoogleFonts(strip, {
+      signal: request.signal,
+      onLoading: request.onFontLoading,
+    })
+    if (fonts.css) {
+      const fontStyle = frameDocument.createElement('style')
+      fontStyle.textContent = fonts.css
+      frameDocument.head.append(fontStyle)
+    }
+    // Flush layout so newly embedded font faces are requested before fonts.ready.
+    strip.getBoundingClientRect()
     await settleFrame(frameDocument, request.signal)
+    for (const face of frameDocument.fonts) {
+      if (face.status === 'error') {
+        throw new FontLoadingError(`Could not decode font ${face.family}; printing with a fallback is disabled.`)
+      }
+    }
 
     const bounds = strip.getBoundingClientRect()
     const cssWidth = Math.max(bounds.width, strip.scrollWidth)
@@ -112,7 +132,7 @@ export async function renderLabels(
       canvasHeight: targetHeight,
       pixelRatio: 1,
       backgroundColor: '#ffffff',
-      fontEmbedCSS: FONT_AWESOME_FONT_CSS,
+      fontEmbedCSS: `${FONT_AWESOME_FONT_CSS}\n${fonts.css}`,
       skipAutoScale: true,
     })
     throwIfAborted(request.signal)
@@ -132,6 +152,8 @@ export async function renderLabels(
       ),
       segmentEnds,
       lengthMm,
+      fontFamilies: fonts.families,
+      fontWarning: fonts.warning,
     }
   } finally {
     iframe.remove()
