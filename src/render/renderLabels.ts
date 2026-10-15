@@ -1,5 +1,6 @@
 import { toCanvas } from 'html-to-image'
 import type { TapeWidthMm } from '../model/document'
+import { FONT_AWESOME_CSS, FONT_AWESOME_FONT_CSS } from './fontAwesome'
 import {
   MAX_PRINT_LENGTH_MM,
   dotsToMm,
@@ -13,6 +14,7 @@ const CSS_PIXELS_PER_INCH = 96
 
 export interface LabelMarkup {
   html: string
+  classes?: readonly string[]
 }
 
 export interface RenderLabelsRequest {
@@ -47,6 +49,10 @@ export async function renderLabels(
       throw new Error('Could not initialize the isolated label renderer.')
     }
 
+    const iconStyle = frameDocument.createElement('style')
+    iconStyle.textContent = FONT_AWESOME_CSS
+    frameDocument.head.append(iconStyle)
+
     const userStyle = frameDocument.createElement('style')
     userStyle.textContent = request.css
     frameDocument.head.append(userStyle)
@@ -65,6 +71,9 @@ export async function renderLabels(
       segment.className = 'label-segment'
       const element = frameDocument.createElement('div')
       element.className = 'label'
+      if (label.classes?.length) {
+        element.classList.add(...label.classes)
+      }
       element.innerHTML = label.html
       segment.append(element)
       strip.append(segment)
@@ -103,7 +112,7 @@ export async function renderLabels(
       canvasHeight: targetHeight,
       pixelRatio: 1,
       backgroundColor: '#ffffff',
-      skipFonts: true,
+      fontEmbedCSS: FONT_AWESOME_FONT_CSS,
       skipAutoScale: true,
     })
     throwIfAborted(request.signal)

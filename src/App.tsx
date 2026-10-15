@@ -96,6 +96,7 @@ function App() {
         const result = interpolateTemplate(document.template, record.values)
         return {
           html: sanitizeLabelHtml(result.html),
+          classes: result.classes,
           missingColumns: result.missingColumns,
           safetyDiagnostics: validateTemplateSafety(result.html),
           recordIndex,
@@ -117,7 +118,7 @@ function App() {
     [compiledLabels, document.previewMode, selectedRecord],
   )
   const labelMarkup = useMemo(
-    () => previewLabels.map((label) => ({ html: label.html })),
+    () => previewLabels.map(({ html, classes }) => ({ html, classes })),
     [previewLabels],
   )
   const blockingMessage =
@@ -322,7 +323,7 @@ function App() {
 
     try {
       const job = await renderLabels({
-        labels: labels.map((label) => ({ html: label.html })),
+        labels: labels.map(({ html, classes }) => ({ html, classes })),
         css: document.css,
         tapeWidthMm: document.tapeWidthMm,
         threshold: document.threshold,

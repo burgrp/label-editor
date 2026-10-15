@@ -26,6 +26,42 @@ describe('template interpolation', () => {
     expect(validateTemplateSyntax('{{ name }} and {{2')).toHaveLength(2)
     expect(validateTemplateSyntax('{{ 0 }} {{12}}')).toEqual([])
   })
+
+  it('combines whitespace-separated classes from cells in any column', () => {
+    const result = interpolateTemplate('', [
+      'class:warning compact',
+      'ordinary text',
+      'class:\textra\ncompact\r\nlabel ',
+    ])
+
+    expect(result.classes).toEqual(['warning', 'compact', 'extra', 'label'])
+  })
+
+  it('preserves cell values, indexes, escaping, and missing-column warnings', () => {
+    const row = ['class:warning', '<First>', 'class:compact', 'Last']
+    const result = interpolateTemplate(
+      '{{0}}|{{1}}|{{2}}|{{3}}|{{4}}',
+      row,
+    )
+
+    expect(result.html).toBe('class:warning|&lt;First&gt;|class:compact|Last|')
+    expect(result.classes).toEqual(['warning', 'compact'])
+    expect(result.missingColumns).toEqual([4])
+    expect(row).toEqual(['class:warning', '<First>', 'class:compact', 'Last'])
+  })
+
+  it('only recognizes the exact prefix and ignores empty class lists', () => {
+    expect(
+      interpolateTemplate('', [
+        'not class:warning',
+        'Class:warning',
+        ' class:warning',
+        'class:',
+        'class: \t ',
+      ]).classes,
+    ).toEqual([])
+    expect(interpolateTemplate('', ['normal', 'row']).classes).toEqual([])
+  })
 })
 
 describe('template content policy', () => {
@@ -54,6 +90,14 @@ describe('template content policy', () => {
     )
 
     expect(html).toBe('<div><strong>safe</strong></div>')
+  })
+
+  it('preserves Font Awesome markup without allowing active content', () => {
+    const html = '<i class="fa-solid fa-house" aria-hidden="true" onclick="bad()"></i>'
+    expect(sanitizeLabelHtml(html)).toBe(
+      '<i class="fa-solid fa-house" aria-hidden="true"></i>',
+    )
+    expect(validateTemplateSafety(html)[0]?.message).toMatch(/onclick/)
   })
 
   it('blocks CSS imports and remote resources', () => {

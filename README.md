@@ -12,6 +12,7 @@ preview is sent to the printer.
 - Live CodeMirror editors for CSV data and a combined HTML/CSS panel with tabs.
 - Standard quoted CSV records with cursor-driven selected-row preview.
 - Escaped zero-based placeholders such as `{{0}}` and `{{1}}`.
+- Per-record CSS classes and bundled Font Awesome Free icons.
 - Selected-label and continuous whole-strip preview with optional label wrapping
   and grab-to-pan scrolling.
 - Physical 3.5, 6, 9, and 12 mm tape sizing at 180 DPI.
@@ -94,6 +95,60 @@ Templates may use ordinary presentational HTML plus inline `data:` images.
 Scripts, event handlers, forms, frames, CSS imports, and remote images or fonts
 are blocked. Imported documents are validated before replacing the current
 document.
+
+### Per-record classes
+
+A CSV cell starting with the exact, case-sensitive prefix `class:` adds CSS
+classes to that record's outer `.label` element:
+
+```csv
+Normal label,Some detail,
+Important label,Check wiring,class:warning
+Compact label,Small text,class:warning compact
+```
+
+```css
+.label.warning {
+  border: 0.5mm solid black;
+  font-weight: bold;
+}
+
+.label.compact {
+  width: 30mm;
+  font-size: 8pt;
+}
+```
+
+Class cells can appear in any column. Names are whitespace-separated; classes
+from multiple cells are combined and duplicates are removed. Empty `class:`
+cells add nothing, and the base `label` class is always retained.
+
+Column indexes and values do not change: a placeholder referencing a class cell
+still renders its original escaped value. Leave that column out of the template
+when it is only used for styling. Classes apply equally to selected-row, strip,
+wrapped preview, and printed labels.
+
+### Font Awesome icons
+
+Font Awesome Free 7 is bundled locally, including Solid, Regular, and Brands.
+Use the normal icon classes directly in the HTML template:
+
+```html
+<i class="fa-solid fa-house" aria-hidden="true"></i> {{0}}
+<i class="fa-regular fa-envelope" aria-hidden="true"></i>
+<i class="fa-brands fa-github" aria-hidden="true"></i>
+```
+
+Set icon size with CSS (for example `.fa-solid { font-size: 16pt; }`) or Font
+Awesome size classes such as `fa-2x`. A field can also supply icon classes with
+`<i class="{{0}}" aria-hidden="true"></i>`. Icon fonts are embedded in the
+isolated renderer and raster capture, so no CDN, remote font, or script is
+needed. Icons print as the same monochrome pixels shown in preview.
+
+Only Free icons are included; Pro styles and icons are not bundled. Font
+Awesome is by Fonticons, Inc.; its fonts are licensed under SIL OFL 1.1 and CSS
+under MIT. The production build includes `fontawesome-license.txt` with the
+upstream notices and licenses.
 
 ## Loading data and sharing templates
 

@@ -6,6 +6,7 @@ export interface TemplateDiagnostic {
 
 export interface InterpolationResult {
   html: string
+  classes: readonly string[]
   missingColumns: readonly number[]
 }
 
@@ -16,6 +17,16 @@ export function interpolateTemplate(
   row: readonly string[],
 ): InterpolationResult {
   const missing = new Set<number>()
+  const classes = new Set<string>()
+  for (const value of row) {
+    if (value.startsWith('class:')) {
+      for (const name of value.slice('class:'.length).split(/\s+/)) {
+        if (name) {
+          classes.add(name)
+        }
+      }
+    }
+  }
   const html = template.replace(
     NUMERIC_PLACEHOLDER,
     (_placeholder, rawIndex: string) => {
@@ -30,6 +41,7 @@ export function interpolateTemplate(
 
   return {
     html,
+    classes: [...classes],
     missingColumns: [...missing].sort((left, right) => left - right),
   }
 }

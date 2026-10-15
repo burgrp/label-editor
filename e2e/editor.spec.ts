@@ -128,6 +128,107 @@ test('selects a CSV record from the editor cursor and composes the strip', async
     .toBeGreaterThan(selectedLength * 2)
 })
 
+test('applies per-record classes in selected, strip, and wrapped previews', async ({
+  page,
+}) => {
+  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+    name: 'classes.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      template: '<b>{{0}}</b><span>{{3}}</span>',
+      css: [
+        '.label { width: 30mm; }',
+        '.label.warning.compact.extra { width: 20mm; }',
+        '.label.wide { width: 40mm; }',
+      ].join('\n'),
+      previewMode: 'selected',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  await setEditor(page, 'data-editor', [
+    'First,class:warning compact,class:extra compact,tail',
+    'class:wide,Second,,tail',
+    'Third,,,tail',
+  ].join('\n'))
+  await page.locator('#data-editor .cm-line').first().click()
+  await expect.poll(() => previewLength(page)).toBeCloseTo(20, 0)
+
+  await page.locator('#data-editor .cm-line').nth(1).click()
+  await expect.poll(() => previewLength(page)).toBeCloseTo(40, 0)
+  await page.locator('#data-editor .cm-line').nth(2).click()
+  await expect.poll(() => previewLength(page)).toBeCloseTo(30, 0)
+
+  await page.getByRole('button', { name: 'Strip', exact: true }).click()
+  await expect.poll(() => previewLength(page)).toBeCloseTo(90, 0)
+  const strip = page.getByLabel('Monochrome label preview', { exact: true })
+  await expect(strip).toHaveAttribute('width', '638')
+  const stripInk = await previewInkRows(strip)
+  await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
+  const canvases = page.locator('.preview-tapes canvas')
+  await expect(canvases).toHaveCount(3)
+  expect(await canvases.evaluateAll((elements) =>
+    elements.map((element) => Number(element.getAttribute('width'))),
+  )).toEqual([142, 283, 213])
+  expect(await previewInkRows(canvases)).toEqual(stripInk)
+})
+
+test('renders bundled solid, regular, and brand icons without network font requests', async ({
+  page,
+}) => {
+  const fontRequests: string[] = []
+  page.on('request', (request) => {
+    if (/^https?:/.test(request.url()) && request.resourceType() === 'font') {
+      fontRequests.push(request.url())
+    }
+  })
+  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+    name: 'icons.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      template: '<i class="{{0}}" aria-hidden="true"></i>',
+      css: '.label { width: 20mm; display: grid; place-items: center; font-size: 24pt; }',
+      previewMode: 'wrapped',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  await setEditor(page, 'data-editor', [
+    'fa-solid fa-circle',
+    'fa-regular fa-circle',
+    'fa-brands fa-github',
+    'fa-solid fa-icon-does-not-exist',
+  ].join('\n'))
+  const canvases = page.locator('.preview-tapes canvas')
+  await expect(canvases).toHaveCount(4)
+  const inkCounts = await canvases.evaluateAll((elements) =>
+    elements.map((element) => {
+      if (!(element instanceof HTMLCanvasElement)) {
+        throw new Error('The preview must be a canvas.')
+      }
+      const context = element.getContext('2d')
+      if (!context) {
+        throw new Error('The preview must have a drawing context.')
+      }
+      const { data } = context.getImageData(0, 0, element.width, element.height)
+      let count = 0
+      for (let index = 0; index < data.length; index += 4) {
+        if (data[index] < 128) count += 1
+      }
+      return count
+    }),
+  )
+  expect(inkCounts[0]).toBeGreaterThan(1000)
+  expect(inkCounts[1]).toBeGreaterThan(100)
+  expect(inkCounts[0]).toBeGreaterThan(inkCounts[1] * 1.5)
+  expect(inkCounts[2]).toBeGreaterThan(100)
+  expect(inkCounts[2]).not.toBe(inkCounts[0])
+  expect(inkCounts[3]).toBe(0)
+  expect(fontRequests).toEqual([])
+})
+
 test('uses physical print dimensions at 1x and retains the 180-DPI raster', async ({
   page,
 }) => {

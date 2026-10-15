@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import { serializeRasterColumn } from '../src/printer/protocol'
+import { packRasterColumns, rgbaToPrintHeadRaster } from '../src/render/raster'
 
 test('explains when browser printing is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
@@ -130,6 +132,83 @@ test('prints one continuous job even when the preview wraps labels', async ({
     writes.filter((write) => write.length === 1 && write[0] === 0x1a),
   ).toHaveLength(1)
 })
+
+for (const mode of ['selected', 'strip'] as const) {
+  test(`prints class-styled ${mode} labels with the same raster as preview`, async ({
+    page,
+  }) => {
+    await installSuccessfulSerialMock(page, 12)
+    await page.goto('/')
+    await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+      name: 'classes.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({
+        version: 1,
+        template: '<i class="fa-solid fa-house" aria-hidden="true"></i>',
+        css: [
+          '.label { width: 40mm; font-size: 20pt; }',
+          '.label.compact { width: 20mm; }',
+          '.label.wide { width: 30mm; }',
+        ].join('\n'),
+        previewMode: mode,
+        tapeWidthMm: 12,
+        threshold: 160,
+      })),
+    })
+    await page.getByLabel('CSV data file', { exact: true }).setInputFiles({
+      name: 'classes.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from('class:compact\nclass:wide'),
+    })
+
+    const canvas = page.getByLabel('Monochrome label preview', { exact: true })
+    await expect(canvas).toHaveAttribute('width', mode === 'selected' ? '143' : '354')
+    const preview = await canvas.evaluate((element) => {
+      if (!(element instanceof HTMLCanvasElement)) {
+        throw new Error('The print preview must be a canvas.')
+      }
+      const context = element.getContext('2d')
+      if (!context) {
+        throw new Error('The preview must have a drawing context.')
+      }
+      return {
+        width: element.width,
+        height: element.height,
+        rgba: [...context.getImageData(0, 0, element.width, element.height).data],
+      }
+    })
+    const raster = rgbaToPrintHeadRaster(
+      new Uint8ClampedArray(preview.rgba),
+      preview.width,
+      preview.height,
+      128,
+    )
+    expect(raster.pixels).toContain(1)
+    const packed = packRasterColumns(raster)
+    const expected: number[][] = []
+    for (let offset = 0; offset < packed.length; offset += 16) {
+      expected.push([...serializeRasterColumn(packed.slice(offset, offset + 16))])
+    }
+
+    await page.getByRole('button', { name: 'Connect printer' }).click()
+    await page.getByRole('button', {
+      name: mode === 'selected' ? 'Print current' : 'Print strip',
+      exact: true,
+    }).click()
+    await expect(page.getByText(/sent successfully/)).toBeVisible({
+      timeout: 15_000,
+    })
+    const writes = await page.evaluate(() =>
+      (window as typeof window & {
+        __serialMock: { writes: number[][] }
+      }).__serialMock.writes,
+    )
+    const columns = writes.filter(
+      (write) => write[0] === 0x47 || (write.length === 1 && write[0] === 0x5a),
+    )
+    expect(columns).toEqual(expected)
+  })
+}
 
 async function installSuccessfulSerialMock(
   page: Page,
