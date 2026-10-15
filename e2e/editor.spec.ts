@@ -33,6 +33,28 @@ test('loads the data editor, template tabs, and deterministic print preview', as
   expect(browserErrors).toEqual([])
 })
 
+test('links to matching Font Awesome Free search at the bottom right', async ({
+  page,
+}) => {
+  const footer = page.locator('.status-bar')
+  const link = footer.getByRole('link', { name: 'Font Awesome 7 icons' })
+  await expect(link).toBeVisible()
+  await expect(link).toHaveAttribute(
+    'href',
+    'https://fontawesome.com/v7/search?ic=free-collection',
+  )
+  await expect(link).toHaveAttribute('target', '_blank')
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  const footerBounds = await footer.boundingBox()
+  const linkBounds = await link.boundingBox()
+  if (!footerBounds || !linkBounds) {
+    throw new Error('The status bar and icon search link must be visible.')
+  }
+  expect(
+    footerBounds.x + footerBounds.width - linkBounds.x - linkBounds.width,
+  ).toBeCloseTo(12, 0)
+})
+
 test('switches template tabs with the mouse and keyboard without losing edits or undo history', async ({
   page,
 }) => {

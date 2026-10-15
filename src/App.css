@@ -522,6 +522,18 @@
   color: #fda4af;
 }
 
+.status-link {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.status-link:hover,
+.status-link:focus-visible {
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .app-header {
     align-items: flex-start;

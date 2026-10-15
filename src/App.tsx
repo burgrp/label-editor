@@ -626,6 +626,15 @@ function App() {
             <span aria-hidden="true"> x</span>
           </button>
         )}
+        <a
+          className="status-link"
+          href="https://fontawesome.com/v7/search?ic=free-collection"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Search Font Awesome 7 Free icons (opens in a new tab)"
+        >
+          Font Awesome 7 icons
+        </a>
       </footer>
     </main>
   )

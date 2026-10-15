@@ -139,6 +139,9 @@ Use the normal icon classes directly in the HTML template:
 <i class="fa-brands fa-github" aria-hidden="true"></i>
 ```
 
+The **Font Awesome 7 icons** link at the bottom right opens the matching Free
+icon search in a new tab.
+
 Set icon size with CSS (for example `.fa-solid { font-size: 16pt; }`) or Font
 Awesome size classes such as `fa-2x`. A field can also supply icon classes with
 `<i class="{{0}}" aria-hidden="true"></i>`. Icon fonts are embedded in the
