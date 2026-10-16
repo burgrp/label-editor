@@ -2,6 +2,7 @@ import { toCanvas } from 'html-to-image'
 import type { TapeWidthMm } from '../model/document'
 import { FONT_AWESOME_CSS, FONT_AWESOME_FONT_CSS } from './fontAwesome'
 import { FontLoadingError, resolveGoogleFonts } from './googleFonts'
+import { MATERIAL_SYMBOLS_CSS } from './materialSymbols'
 import {
   MAX_PRINT_LENGTH_MM,
   dotsToMm,
@@ -54,7 +55,7 @@ export async function renderLabels(
     }
 
     const iconStyle = frameDocument.createElement('style')
-    iconStyle.textContent = FONT_AWESOME_CSS
+    iconStyle.textContent = `${FONT_AWESOME_CSS}\n${MATERIAL_SYMBOLS_CSS}`
     frameDocument.head.append(iconStyle)
 
     const userStyle = frameDocument.createElement('style')

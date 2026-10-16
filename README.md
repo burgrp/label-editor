@@ -12,7 +12,8 @@ preview is sent to the printer.
 - Three always-visible CodeMirror panels in one row: Data, HTML, and CSS.
 - Standard quoted CSV records with cursor-driven selected-row preview.
 - Escaped zero-based placeholders such as `{{0}}` and `{{1}}`.
-- Per-record CSS classes and bundled Font Awesome Free icons.
+- Per-record CSS classes, bundled Font Awesome Free icons, and on-demand Google
+  Material Symbols.
 - Automatic Google Fonts loading from CSS, with local caching and print embedding.
 - Selected-label and continuous whole-strip preview with optional label wrapping
   and grab-to-pan scrolling.
@@ -68,6 +69,11 @@ Click and drag anywhere on the tape to pan an overflowing preview horizontally
 or vertically. Scrollbars and normal touch scrolling remain available.
 
 ## Template model
+
+New documents start with an automatically loaded Exo font, a Font Awesome
+bookmark before the detail field, and `gap: 0 1mm` (no vertical gap, 1 mm between
+columns). Existing auto-saved documents and imported templates keep their own
+HTML and CSS.
 
 The CSV has no header row. Every non-empty record is one label:
 
@@ -148,8 +154,9 @@ Use the normal icon classes directly in the HTML template:
 <i class="fa-brands fa-github" aria-hidden="true"></i>
 ```
 
-The bottom-right **Icons**, **CSS**, and **Fonts** links open Font Awesome 7 Free
-icon search, MDN's CSS documentation, and Google Fonts in new tabs.
+The bottom-right links are **Google Fonts | Google Icons | FA Icons | CSS
+reference**, opening the corresponding font browser, Material Symbols browser,
+Font Awesome 7 Free icon search, and MDN documentation in new tabs.
 
 Set icon size with CSS (for example `.fa-solid { font-size: 16pt; }`) or Font
 Awesome size classes such as `fa-2x`. A field can also supply icon classes with
@@ -161,6 +168,47 @@ Only Free icons are included; Pro styles and icons are not bundled. Font
 Awesome is by Fonticons, Inc.; its fonts are licensed under SIL OFL 1.1 and CSS
 under MIT. The production build includes `fontawesome-license.txt` with the
 upstream notices and licenses.
+
+### Google Material Symbols
+
+Material Symbols work alongside Font Awesome. Use one of the three standard
+classes and place an icon's name inside the element:
+
+```html
+<span class="material-symbols-outlined">home</span>
+<span class="material-symbols-rounded">electrical_services</span>
+<span class="material-symbols-sharp">warning</span>
+```
+
+The app supplies the required font family, ligature rules, and default 24px
+size. You can resize icons and customize their axes in your CSS:
+
+```css
+.material-symbols-rounded {
+  font-size: 20pt;
+  font-weight: 600;
+  font-variation-settings: "FILL" 1, "GRAD" 0, "opsz" 24;
+}
+```
+
+Supported axes are `FILL` (0-1), `wght` (100-700), `GRAD` (-25-200), and `opsz`
+(20-48). Use `font-weight` for weight, or an explicit `"wght"` axis override.
+Keep the `opsz` value in the supported range even when choosing a smaller
+physical icon size. For small monochrome labels, filled or heavier symbols
+are a useful starting point.
+
+Only icon names used in visible Material Symbols elements are sent to Google's
+`icon_names` subsetting API, sorted and deduplicated. Ordinary label text is not
+sent, and Google's `text=` parameter is not used. A small variable-font subset
+per used family supports differently styled instances of the same icon without
+downloading the complete icon catalog. Names can come from CSV placeholders;
+only use icon names (such as `home`), not numeric codepoints, inside these
+elements.
+
+The same font cache, loading/error reporting, and raster embedding used for
+Google text fonts apply to Material Symbols, including offline reuse after the
+first download. Font Awesome templates remain unchanged. Material Symbols are
+provided by Google under the [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
 ### Automatic Google Fonts
 
@@ -194,8 +242,9 @@ and, when Cache Storage is available, across reloads. Cache failures are shown
 as warnings without preventing an otherwise valid render.
 
 Initial downloads contact only `fonts.googleapis.com` and `fonts.gstatic.com`,
-without credentials, a referrer, or Google's `text=` parameter. CSV and template
-text are never sent to Google. Subsequent renders can use cached fonts offline;
+without credentials, a referrer, or Google's `text=` parameter. Ordinary CSV and
+template text are never sent to Google; Material Symbols requests include only
+their icon names via `icon_names`. Subsequent renders can use cached fonts offline;
 a new uncached family or weight still requires internet access. Clearing this
 site's browser storage removes the persistent font cache.
 

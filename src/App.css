@@ -493,7 +493,7 @@
 .status-links {
   display: flex;
   flex-shrink: 0;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
 }
 

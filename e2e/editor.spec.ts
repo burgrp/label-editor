@@ -1,10 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { mockExo } from './helpers/googleFonts'
 
 test.beforeEach(async ({ page }) => {
+  await mockExo(page)
   await page.goto('/')
   await page.evaluate(() => window.localStorage.clear())
   await page.reload()
+  await expect(page.locator('.font-status')).toHaveText('Fonts ready: Exo')
 })
 
 test('loads three always-visible editors and the deterministic print preview', async ({
@@ -19,6 +22,9 @@ test('loads three always-visible editors and the deterministic print preview', a
   await expect(page.getByRole('tab')).toHaveCount(0)
   await expect(page.locator('#html-editor')).toBeVisible()
   await expect(page.locator('#css-editor')).toBeVisible()
+  await expect(page.locator('#html-editor .cm-content')).toContainText('fa-solid fa-bookmark')
+  await expect(page.locator('#css-editor .cm-content')).toContainText('gap: 0 1mm;')
+  await expect(page.locator('#css-editor .cm-content')).toContainText('font-family: Exo, sans-serif;')
   await expect(page.getByLabel('Monochrome label preview')).toBeVisible()
   await expect(page.getByLabel('Preview zoom')).toHaveValue('1')
   await expect(page.locator('.zoom-control output')).toHaveText('1x')
@@ -117,10 +123,15 @@ test('links to icons, CSS documentation, and fonts at the bottom right', async (
 }) => {
   const footer = page.locator('.status-bar')
   const resources = footer.getByRole('navigation', { name: 'Design resources' })
+  await expect(resources.getByRole('link')).toHaveText([
+    'Google Fonts', 'Google Icons', 'FA Icons', 'CSS reference',
+  ])
+  await expect(resources.locator('span[aria-hidden="true"]')).toHaveText(['|', '|', '|'])
   for (const [name, href] of [
-    ['Icons', 'https://fontawesome.com/v7/search?ic=free-collection'],
-    ['CSS', 'https://developer.mozilla.org/en-US/docs/Web/CSS'],
-    ['Fonts', 'https://fonts.google.com/?preview.script=Latn'],
+    ['Google Fonts', 'https://fonts.google.com/?preview.script=Latn'],
+    ['Google Icons', 'https://fonts.google.com/icons'],
+    ['FA Icons', 'https://fontawesome.com/v7/search?ic=free-collection'],
+    ['CSS reference', 'https://developer.mozilla.org/en-US/docs/Web/CSS'],
   ]) {
     const link = resources.getByRole('link', { name, exact: true })
     await expect(link).toBeVisible()
@@ -154,7 +165,7 @@ test('keeps HTML and CSS edits and undo history independent across panels', asyn
   await page.keyboard.press(
     process.platform === 'darwin' ? 'Meta+Z' : 'Control+Z',
   )
-  await expect(page.locator('#css-editor .cm-content')).toContainText('48mm')
+  await expect(page.locator('#css-editor .cm-content')).toContainText('font-family: Exo, sans-serif;')
   await expect(page.locator('#html-editor .cm-content')).toContainText('<strong>{{0}}</strong>')
 })
 

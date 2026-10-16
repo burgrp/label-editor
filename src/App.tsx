@@ -636,26 +636,37 @@ function App() {
         )}
         <nav className="status-links" aria-label="Design resources">
           <a
+            href="https://fonts.google.com/?preview.script=Latn"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google Fonts
+          </a>
+          <span aria-hidden="true">|</span>
+          <a
+            href="https://fonts.google.com/icons"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Browse Google Material Symbols (opens in a new tab)"
+          >
+            Google Icons
+          </a>
+          <span aria-hidden="true">|</span>
+          <a
             href="https://fontawesome.com/v7/search?ic=free-collection"
             target="_blank"
             rel="noopener noreferrer"
             title="Search Font Awesome 7 Free icons (opens in a new tab)"
           >
-            Icons
+            FA Icons
           </a>
+          <span aria-hidden="true">|</span>
           <a
             href="https://developer.mozilla.org/en-US/docs/Web/CSS"
             target="_blank"
             rel="noopener noreferrer"
           >
-            CSS
-          </a>
-          <a
-            href="https://fonts.google.com/?preview.script=Latn"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Fonts
+            CSS reference
           </a>
         </nav>
       </footer>

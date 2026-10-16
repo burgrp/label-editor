@@ -1,13 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mockGoogleFonts } from './helpers/googleFonts'
+import { mockExo, mockGoogleFonts } from './helpers/googleFonts'
 
 test.beforeEach(async ({ page }) => {
+  await mockExo(page)
   await page.goto('/')
   await page.evaluate(async () => {
     localStorage.clear()
     await caches.delete('label-editor.google-fonts.v1')
   })
   await page.reload()
+  await expect(page.locator('.font-status')).toHaveText('Fonts ready: Exo')
 })
 
 async function setFontTemplate(page: Page, css: string, template = '<span>&#xf111;</span>') {

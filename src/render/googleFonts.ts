@@ -12,6 +12,7 @@ export interface FontRequest {
   family: string
   weight: string
   style: 'normal' | 'italic'
+  symbols?: MaterialSymbolOptions
 }
 
 interface EmbeddedFont {
@@ -43,7 +44,7 @@ export function discoverFonts(root: HTMLElement): readonly FontRequest[] {
   const view = root.ownerDocument.defaultView
   if (!view) throw new FontLoadingError('The label document has no style resolver.')
   const requests = new Map<string, FontRequest>()
-  const addStyle = (style: CSSStyleDeclaration) => {
+  const addStyle = (style: CSSStyleDeclaration, content: string) => {
     // Only the preferred family is resolved; explicit fallback families remain fallbacks.
     const family = parseFontFamilies(style.fontFamily)[0]
     if (
@@ -52,11 +53,25 @@ export function discoverFonts(root: HTMLElement): readonly FontRequest[] {
       /^Font ?Awesome(?:\s|$)/i.test(family)
     ) return
     const font: FontRequest = {
-      family,
+      family: materialSymbolFamily(family) ?? family,
       weight: style.fontWeight || '400',
       style: /^(italic|oblique)/.test(style.fontStyle) ? 'italic' : 'normal',
     }
-    requests.set(fontKey(font), font)
+    if (materialSymbolFamily(family)) {
+      try {
+        font.symbols = materialSymbolOptions(style, content)
+      } catch (error) {
+        throw new FontLoadingError(errorMessage(error), { cause: error })
+      }
+      font.weight = String(font.symbols.weight)
+      font.style = 'normal'
+    }
+    const key = font.symbols ? font.family : fontKey(font)
+    const previous = requests.get(key)
+    if (font.symbols && previous?.symbols) {
+      font.symbols.names = [...new Set([...previous.symbols.names, ...font.symbols.names])].sort()
+    }
+    requests.set(key, font)
   }
 
   for (const element of [root, ...root.querySelectorAll<HTMLElement>('*')]) {
@@ -70,7 +85,12 @@ export function discoverFonts(root: HTMLElement): readonly FontRequest[] {
     if ([...element.childNodes].some(
       (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
     )) {
-      addStyle(style)
+      addStyle(
+        style,
+        [...element.childNodes]
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent ?? '').join(''),
+      )
     }
     for (const pseudo of ['::before', '::after']) {
       const pseudoStyle = view.getComputedStyle(element, pseudo)
@@ -79,7 +99,9 @@ export function discoverFonts(root: HTMLElement): readonly FontRequest[] {
         pseudoStyle.visibility !== 'hidden' &&
         !['', 'none', 'normal', '""', "''"].includes(pseudoStyle.content)
       ) {
-        addStyle(pseudoStyle)
+        addStyle(pseudoStyle, decodeCssEscapes(
+          pseudoStyle.content.replace(/^(['"])(.*)\1$/, '$2'),
+        ))
       }
     }
   }
@@ -96,7 +118,7 @@ export async function resolveGoogleFonts(
   const warnings = new Set<string>()
   for (const font of fonts) {
     options.signal?.throwIfAborted()
-    if (await abortable(isLocalFont(font), options.signal)) continue
+    if (!font.symbols && await abortable(isLocalFont(font), options.signal)) continue
     options.onLoading?.(`Loading fonts: ${font.family} (${font.style} ${font.weight})`)
     const result = await loadGoogleFont(font, options.signal)
     embedded.push(result.css)
@@ -129,6 +151,13 @@ export function loadGoogleFont(font: FontRequest, signal?: AbortSignal): Promise
 
 export function googleFontUrl(font: FontRequest): string {
   const url = new URL('https://fonts.googleapis.com/css2')
+  if (font.symbols) {
+    // One variable face per family lets differently styled instances coexist.
+    url.searchParams.set('family', `${font.family}:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-25..200`)
+    url.searchParams.set('icon_names', font.symbols.names.join(','))
+    url.searchParams.set('display', 'block')
+    return url.href
+  }
   const weight = font.weight === 'bold' ? '700'
     : font.weight === 'normal' ? '400' : font.weight
   if (!/^\d+(?:\.\d+)?$/.test(weight) || Number(weight) < 1 || Number(weight) > 1000) {
@@ -280,10 +309,15 @@ function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 }
 
 function fontKey(font: FontRequest): string {
-  return `${font.family}\0${font.weight}\0${font.style}`
+  return JSON.stringify(font)
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 import { decodeCssEscapes } from '../template/security'
+import {
+  materialSymbolFamily,
+  materialSymbolOptions,
+  type MaterialSymbolOptions,
+} from './materialSymbols'

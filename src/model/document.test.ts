@@ -16,6 +16,43 @@ import {
 } from './storage'
 
 describe('label document validation', () => {
+  it('starts with the Exo bookmark template and a horizontal-only 1mm gap', () => {
+    expect(DEFAULT_DOCUMENT.template).toBe([
+      '<div class="name">{{0}}</div>',
+      '<div class="detail">',
+      '  <i class="fa-solid fa-bookmark"></i>',
+      '  {{1}}',
+      '</div>',
+      '<div class="year">{{2}}</div>',
+    ].join('\n'))
+    expect(DEFAULT_DOCUMENT.css).toBe([
+      '.label {',
+      '  font-family: Exo, sans-serif;',
+      '  padding: 1.2mm 2mm;',
+      '  align-content: center;',
+      '  display: grid;',
+      '  gap: 0 1mm;',
+      '}',
+      '',
+      '.name {',
+      '  font-size: 14pt;',
+      '  font-weight: 700;',
+      '}',
+      '',
+      '.detail {',
+      '  font-size: 8pt;',
+      '}',
+      '',
+      '.year {',
+      '  grid-column: 2;',
+      '  grid-row: 1 / span 2;',
+      '  align-self: center;',
+      '  font-size: 11pt;',
+      '  font-weight: 700;',
+      '  align-items: center;',
+      '}',
+    ].join('\n'))
+  })
   it.each(PREVIEW_MODES)('round-trips a document in %s mode', (previewMode) => {
     const document = { ...DEFAULT_DOCUMENT, previewMode }
     expect(parseLabelDocument(document)).toEqual(document)
@@ -105,6 +142,17 @@ describe('document storage', () => {
   it('loads defaults when there is no saved document', () => {
     const storage = memoryStorage()
     expect(loadDocument(storage)).toEqual({ document: DEFAULT_DOCUMENT })
+  })
+
+  it('does not replace existing HTML and CSS with new defaults', () => {
+    const storage = memoryStorage()
+    const saved = {
+      ...DEFAULT_DOCUMENT,
+      template: '<strong>{{1}}</strong>',
+      css: '.label { width: 48mm; font-family: Arial; }',
+    }
+    saveDocument(saved, storage)
+    expect(loadDocument(storage)).toEqual({ document: saved })
   })
 
   it.each(PREVIEW_MODES)('saves and restores a document in %s mode', (previewMode) => {

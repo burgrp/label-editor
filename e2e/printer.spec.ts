@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 import { serializeRasterColumn } from '../src/printer/protocol'
 import { packRasterColumns, rgbaToPrintHeadRaster } from '../src/render/raster'
-import { mockGoogleFonts } from './helpers/googleFonts'
+import { mockExo, mockGoogleFonts } from './helpers/googleFonts'
+
+test.beforeEach(async ({ page }) => {
+  await mockExo(page)
+})
 
 test('explains when browser printing is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
@@ -146,11 +150,12 @@ for (const mode of ['selected', 'strip'] as const) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({
         version: 1,
-        template: '<i class="fa-solid fa-house" aria-hidden="true"></i><span>&#xf111;</span>',
+        template: '<i class="fa-solid fa-house" aria-hidden="true"></i><span>&#xf111;</span><span class="material-symbols-rounded">home</span>',
         css: [
           '.label { width: 40mm; font: 20pt "Label Print Font"; }',
           '.label.compact { width: 20mm; }',
           '.label.wide { width: 30mm; }',
+          '.material-symbols-rounded { font-size: 12px; font-variation-settings: "FILL" 1; }',
         ].join('\n'),
         previewMode: mode,
         tapeWidthMm: 12,
