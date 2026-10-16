@@ -102,6 +102,10 @@
   gap: 8px;
 }
 
+.panel-actions {
+  flex-wrap: wrap;
+}
+
 .printer-badge {
   padding: 5px 9px;
   border-radius: 99px;

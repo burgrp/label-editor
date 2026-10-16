@@ -170,16 +170,27 @@ function App() {
   )
 
   const handleTemplateExport = () => {
-    const blob = new Blob([serializeTemplate(document)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const anchor = window.document.createElement('a')
-    anchor.href = url
-    anchor.download = 'label-template.json'
-    anchor.click()
-    URL.revokeObjectURL(url)
-    setNotice({ kind: 'info', message: 'Template and settings exported.' })
+    try {
+      downloadTextFile(serializeTemplate(document), 'label-template.json', 'application/json')
+      setNotice({ kind: 'info', message: 'Template and settings exported.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message: `Could not export template and settings: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }
+
+  const handleSaveData = () => {
+    try {
+      downloadTextFile(document.data, 'label-data.csv', 'text/csv;charset=utf-8')
+      setNotice({ kind: 'info', message: 'CSV data downloaded.' })
+    } catch (error) {
+      setNotice({
+        kind: 'error',
+        message: `Could not save CSV data: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
   }
 
   const handleTemplateImport = async (file: File | undefined) => {
@@ -566,6 +577,13 @@ function App() {
               >
                 Load CSV
               </button>
+              <button
+                type="button"
+                title="Download the current CSV text without changing the template or settings."
+                onClick={handleSaveData}
+              >
+                Save CSV
+              </button>
             </>
           }
           onChange={(value) => updateDocument('data', value)}
@@ -675,6 +693,18 @@ function App() {
 }
 
 export default App
+
+function downloadTextFile(text: string, filename: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type }))
+  try {
+    const anchor = window.document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
 
 function hasWebSerialSupport(): boolean {
   if (

@@ -30,6 +30,7 @@ test('loads three always-visible editors and the deterministic print preview', a
   await expect(page.locator('.zoom-control output')).toHaveText('1x')
   await expect(page.getByText('3 labels ready')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load CSV' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save CSV' })).toBeVisible()
   await expect(
     page.getByRole('group', { name: 'Template and settings', exact: true }),
   ).toBeVisible()
@@ -676,6 +677,58 @@ test('loads malformed CSV into the editor with blocking diagnostics', async ({
     page.getByText(/Loaded malformed.csv; correct the CSV before printing:/),
   ).toBeVisible()
   await expect(page.locator('.preview-tapes canvas')).toHaveCount(0)
+})
+
+for (const [name, text] of [
+  ['quoted, multiline, and Unicode data',
+    '"Ada, Lovelace","say ""hello""",class:warning\n\n"two\nlines",Příliš žluťoučký,2026\n'],
+  ['CRLF line endings', 'first,value,class:compact\r\nsecond,value,\r\n'],
+  ['malformed CSV', 'one,"unfinished'],
+  ['empty data', ''],
+] as const) {
+  test(`saves exact CSV text for ${name}`, async ({ page }) => {
+    await page.getByLabel('CSV data file', { exact: true }).setInputFiles({
+      name: 'source.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(text),
+    })
+    await expect(page.locator('.notice')).toContainText(/Loaded/)
+    const settings = {
+      html: await page.locator('#html-editor .cm-content').innerText(),
+      css: await page.locator('#css-editor .cm-content').innerText(),
+      tape: await page.getByLabel('Tape').inputValue(),
+      threshold: await page.getByLabel('Black threshold').inputValue(),
+      zoom: await page.getByLabel('Preview zoom').inputValue(),
+    }
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('region', { name: 'Data', exact: true })
+      .getByRole('button', { name: 'Save CSV' }).click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toBe('label-data.csv')
+    expect(await readFile(await download.path(), 'utf8')).toBe(text)
+    await expect(page.getByText('CSV data downloaded.')).toBeVisible()
+    expect({
+      html: await page.locator('#html-editor .cm-content').innerText(),
+      css: await page.locator('#css-editor .cm-content').innerText(),
+      tape: await page.getByLabel('Tape').inputValue(),
+      threshold: await page.getByLabel('Black threshold').inputValue(),
+      zoom: await page.getByLabel('Preview zoom').inputValue(),
+    }).toEqual(settings)
+  })
+}
+
+test('surfaces CSV download failures without losing editor data', async ({ page }) => {
+  const data = await page.locator('#data-editor .cm-content').innerText()
+  await page.evaluate(() => {
+    URL.createObjectURL = () => { throw new Error('Download unavailable') }
+  })
+  await page.getByRole('button', { name: 'Save CSV' }).click()
+  await expect(page.locator('.notice.error')).toHaveText(
+    /Could not save CSV data: Download unavailable/,
+  )
+  await expect(page.locator('#data-editor .cm-content')).toHaveText(data, {
+    useInnerText: true,
+  })
 })
 
 test('preserves data and reports a CSV file read failure', async ({ page }) => {

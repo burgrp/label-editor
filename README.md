@@ -260,6 +260,11 @@ file. HTML, CSS, and settings remain unchanged. Malformed CSV is loaded into the
 editor with diagnostics; preview and printing stay blocked until it is fixed.
 Loading a file selects its first record.
 
+Use **Save CSV** next to it to download `label-data.csv` as UTF-8. This saves the
+exact editor data without reformatting quotes, line endings, blank records, or
+`class:` annotations. Empty or unfinished CSV can also be saved. Saving CSV does
+not change the template or settings.
+
 The toolbar's **Template** Import and Export buttons handle HTML, CSS,
 tape width, black threshold, preview mode, and zoom. Export downloads
 `label-template.json` without CSV data. Import preserves the current data and
