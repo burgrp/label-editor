@@ -118,7 +118,9 @@ export async function renderLabels(
       )
     }
 
-    const segmentEnds = [...strip.children].map((child) => {
+    const segmentEnds = [...strip.children].map((child, index) => {
+      // scrollWidth can round beyond the last label's fractional CSS boundary.
+      if (index === strip.children.length - 1) return targetWidth
       const end =
         (child.getBoundingClientRect().right - bounds.left) *
         (180 / CSS_PIXELS_PER_INCH)

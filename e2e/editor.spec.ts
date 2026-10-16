@@ -516,6 +516,33 @@ test('pans the strip by grabbing the canvas and stops when released outside', as
   )
 })
 
+test('keeps every raster column when wrapping labels with fractional pixel widths', async ({
+  page,
+}) => {
+  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+    name: 'fractional-labels.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      template: '<div></div>',
+      css: '.label { width: 20.5px; padding: 0; background: black; }',
+      previewMode: 'strip',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  const strip = page.getByLabel('Monochrome label preview', { exact: true })
+  await expect(strip).toHaveAttribute('width', '116')
+  const stripInk = await previewInkRows(strip)
+  await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
+  const canvases = page.locator('.preview-tapes canvas')
+  await expect(canvases).toHaveCount(3)
+  expect(await canvases.evaluateAll((elements) =>
+    elements.reduce((sum, canvas) => sum + Number(canvas.getAttribute('width')), 0),
+  )).toBe(116)
+  expect(await previewInkRows(canvases)).toEqual(stripInk)
+})
+
 test('pans overflowing wrapped labels horizontally and vertically', async ({
   page,
 }) => {
