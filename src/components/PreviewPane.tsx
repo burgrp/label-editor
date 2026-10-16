@@ -24,6 +24,8 @@ interface PreviewPaneProps {
   tapeWidthMm: TapeWidthMm
   threshold: number
   previewMode: PreviewMode
+  zoom: number
+  onZoomChange: (zoom: number) => void
   onPreviewModeChange: (mode: PreviewMode) => void
   blockedMessage?: string
   onRendered?: (rendered: RenderedLabels | null) => void
@@ -49,12 +51,13 @@ export function PreviewPane({
   tapeWidthMm,
   threshold,
   previewMode,
+  zoom,
+  onZoomChange,
   onPreviewModeChange,
   blockedMessage,
   onRendered,
 }: PreviewPaneProps) {
   const panOrigin = useRef<PanOrigin | null>(null)
-  const [zoom, setZoom] = useState(3)
   const wrapLabels = previewMode === 'wrapped'
   const [isPanning, setIsPanning] = useState(false)
   const [state, setState] = useState<PreviewState>({ status: 'idle' })
@@ -211,7 +214,7 @@ export function PreviewPane({
               min="1"
               max="8"
               value={zoom}
-              onChange={(event) => setZoom(Number(event.target.value))}
+              onChange={(event) => onZoomChange(Number(event.target.value))}
             />
             <output>{zoom}x</output>
           </label>

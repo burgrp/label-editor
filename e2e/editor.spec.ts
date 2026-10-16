@@ -23,14 +23,39 @@ test('loads the data editor, template tabs, and deterministic print preview', as
   await expect(page.locator('#html-editor')).toBeVisible()
   await expect(page.locator('#css-editor')).toBeHidden()
   await expect(page.getByLabel('Monochrome label preview')).toBeVisible()
-  await expect(page.getByLabel('Preview zoom')).toHaveValue('3')
-  await expect(page.locator('.zoom-control output')).toHaveText('3x')
+  await expect(page.getByLabel('Preview zoom')).toHaveValue('1')
+  await expect(page.locator('.zoom-control output')).toHaveText('1x')
   await expect(page.getByText('3 labels ready')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Load CSV' })).toBeVisible()
   await expect(
     page.getByRole('group', { name: 'Template and settings', exact: true }),
   ).toBeVisible()
   expect(browserErrors).toEqual([])
+})
+
+test('persists zoom across edits, preview modes, data loading, and reloads', async ({
+  page,
+}) => {
+  const zoom = page.getByLabel('Preview zoom')
+  await zoom.press('Home')
+  for (let step = 1; step < 5; step += 1) await zoom.press('ArrowRight')
+  await expect(zoom).toHaveValue('5')
+  await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
+  await setEditor(page, 'html-editor', '<strong>{{0}}</strong>')
+  await page.getByLabel('CSV data file', { exact: true }).setInputFiles({
+    name: 'zoom.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('test,data'),
+  })
+  await expect(zoom).toHaveValue('5')
+  await expect
+    .poll(() => page.evaluate(() =>
+      localStorage.getItem('brother-pt-label-editor.document.v1'),
+    ))
+    .toContain('"zoom":5')
+  await page.reload()
+  await expect(zoom).toHaveValue('5')
+  await expect(page.locator('.zoom-control output')).toHaveText('5x')
 })
 
 test('links to icons, CSS documentation, and fonts at the bottom right', async ({
@@ -260,9 +285,11 @@ test('uses physical print dimensions at 1x and retains the 180-DPI raster', asyn
 }) => {
   const canvas = page.getByLabel('Monochrome label preview', { exact: true })
   await expect(canvas).toBeVisible()
-  const defaultBounds = await canvas.boundingBox()
-  if (!defaultBounds) {
-    throw new Error('The default preview must have visible bounds.')
+  await page.getByLabel('Preview zoom').press('ArrowRight')
+  await page.getByLabel('Preview zoom').press('ArrowRight')
+  const magnifiedBounds = await canvas.boundingBox()
+  if (!magnifiedBounds) {
+    throw new Error('The magnified preview must have visible bounds.')
   }
 
   await page.getByLabel('Preview zoom').press('Home')
@@ -303,8 +330,8 @@ test('uses physical print dimensions at 1x and retains the 180-DPI raster', asyn
     }).toPass({ timeout: 5000 })
   }
 
-  expect(defaultBounds.width / oneToOneBounds.width).toBeCloseTo(3, 2)
-  expect(defaultBounds.height / oneToOneBounds.height).toBeCloseTo(3, 2)
+  expect(magnifiedBounds.width / oneToOneBounds.width).toBeCloseTo(3, 2)
+  expect(magnifiedBounds.height / oneToOneBounds.height).toBeCloseTo(3, 2)
 })
 
 test('keeps the three preview modes in the preview header and restores wrapped mode', async ({
@@ -386,6 +413,7 @@ test('pans the strip by grabbing the canvas and stops when released outside', as
   page,
 }) => {
   await page.getByRole('button', { name: 'Strip', exact: true }).click()
+  await page.getByLabel('Preview zoom').press('End')
   const canvas = page.getByLabel('Monochrome label preview', { exact: true })
   await expect(canvas).toBeVisible()
   await expect.poll(() => previewLength(page)).toBeGreaterThan(100)
@@ -596,6 +624,7 @@ test('persists data while importing and exporting only template and settings', a
     template: '<b>{{0}}</b>',
     css: '.label { width: 30mm; }',
     previewMode: 'wrapped',
+    zoom: 6,
     tapeWidthMm: 9,
     threshold: 140,
   }
@@ -615,6 +644,7 @@ test('persists data while importing and exporting only template and settings', a
   await expect(page.locator('#html-editor .cm-content')).toContainText('<b>{{0}}</b>')
   await expect(page.getByLabel('Tape')).toHaveValue('9')
   await expect(page.getByLabel('Black threshold')).toHaveValue('140')
+  await expect(page.getByLabel('Preview zoom')).toHaveValue('6')
   await expect(page.getByRole('button', { name: 'Wrapped' })).toHaveAttribute(
     'aria-pressed',
     'true',

@@ -52,7 +52,9 @@ Wrapping only changes the preview layout; the printer still receives a
 continuous strip in CSV order. The selected preview mode is saved with the
 document.
 
-Zoom defaults to **3x**. At **1x**, the tape is displayed in physical CSS
+Zoom is saved with the other document settings, restored on reload, and included
+in template import/export. New documents and older files without a zoom setting
+start at **1x**. At **1x**, the tape is displayed in physical CSS
 millimetres instead of mapping one 180-DPI printer dot to one screen pixel.
 The apparent real-world size still depends on browser zoom and display scaling.
 
@@ -204,7 +206,7 @@ editor with diagnostics; preview and printing stay blocked until it is fixed.
 Loading a file selects its first record.
 
 The header's **Template & settings** Import and Export buttons handle HTML, CSS,
-tape width, black threshold, and preview mode. Export downloads
+tape width, black threshold, preview mode, and zoom. Export downloads
 `label-template.json` without CSV data. Import preserves the current data and
 selection, and invalid template files leave the current document unchanged.
 Older full-document JSON exports can still be imported; their data is ignored.

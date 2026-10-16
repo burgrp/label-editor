@@ -12,6 +12,7 @@ export interface LabelDocument {
   template: string
   css: string
   previewMode: PreviewMode
+  zoom: number
   tapeWidthMm: TapeWidthMm
   threshold: number
 }
@@ -59,6 +60,7 @@ export const DEFAULT_DOCUMENT: LabelDocument = {
     '}',
   ].join('\n'),
   previewMode: 'selected',
+  zoom: 1,
   tapeWidthMm: 12,
   threshold: 160,
 }
@@ -83,6 +85,7 @@ export function parseLabelDocument(value: unknown): LabelDocument {
   }
 
   const issues: string[] = []
+  const zoom = value.zoom === undefined ? DEFAULT_DOCUMENT.zoom : value.zoom
   if (value.version !== DOCUMENT_VERSION) {
     issues.push(`version must be ${DOCUMENT_VERSION}`)
   }
@@ -97,6 +100,9 @@ export function parseLabelDocument(value: unknown): LabelDocument {
   }
   if (!PREVIEW_MODES.some((mode) => mode === value.previewMode)) {
     issues.push('previewMode must be "selected", "strip", or "wrapped"')
+  }
+  if (typeof zoom !== 'number' || !Number.isInteger(zoom) || zoom < 1 || zoom > 8) {
+    issues.push('zoom must be an integer from 1 to 8')
   }
   if (!TAPE_WIDTHS_MM.some((width) => width === value.tapeWidthMm)) {
     issues.push(`tapeWidthMm must be one of ${TAPE_WIDTHS_MM.join(', ')}`)
@@ -120,6 +126,7 @@ export function parseLabelDocument(value: unknown): LabelDocument {
     template: value.template as string,
     css: value.css as string,
     previewMode: value.previewMode as PreviewMode,
+    zoom: zoom as number,
     tapeWidthMm: value.tapeWidthMm as TapeWidthMm,
     threshold: value.threshold as number,
   }
@@ -130,10 +137,10 @@ export function parseLabelTemplate(value: unknown): LabelTemplate {
     throw new DocumentValidationError(['template must be a JSON object'])
   }
 
-  const { version, template, css, previewMode, tapeWidthMm, threshold } =
+  const { version, template, css, previewMode, zoom, tapeWidthMm, threshold } =
     parseLabelDocument({ ...value, data: '' })
 
-  return { version, template, css, previewMode, tapeWidthMm, threshold }
+  return { version, template, css, previewMode, zoom, tapeWidthMm, threshold }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -41,6 +41,26 @@ describe('label document validation', () => {
       expect((error as DocumentValidationError).issues).toHaveLength(7)
     }
   })
+
+  it.each([1, 3, 5, 8])('round-trips zoom %s', (zoom) => {
+    const document = { ...DEFAULT_DOCUMENT, zoom }
+    const storage = memoryStorage()
+    saveDocument(document, storage)
+    expect(loadDocument(storage)).toEqual({ document })
+    expect(importTemplateJson(serializeTemplate(document)).zoom).toBe(zoom)
+  })
+
+  it.each([0, 9, 1.5, NaN, Infinity, '3', null])('rejects invalid zoom %s', (zoom) => {
+    expect(() => parseLabelDocument({ ...DEFAULT_DOCUMENT, zoom })).toThrow(/zoom/)
+  })
+
+  it('loads older saved documents and templates without zoom at 1x', () => {
+    const { zoom: _zoom, ...legacy } = DEFAULT_DOCUMENT
+    const storage = memoryStorage()
+    storage.setItem(DOCUMENT_STORAGE_KEY, JSON.stringify(legacy))
+    expect(loadDocument(storage)).toEqual({ document: { ...legacy, zoom: 1 } })
+    expect(importTemplateJson(JSON.stringify(legacy)).zoom).toBe(1)
+  })
 })
 
 describe('template files', () => {
@@ -52,6 +72,7 @@ describe('template files', () => {
         template: '<b>{{0}}</b>',
         css: '.label { width: 30mm; }',
         previewMode,
+        zoom: 5,
         tapeWidthMm: 9,
         threshold: 140,
       }

@@ -591,6 +591,8 @@ function App() {
           tapeWidthMm={document.tapeWidthMm}
           threshold={document.threshold}
           previewMode={document.previewMode}
+          zoom={document.zoom}
+          onZoomChange={(zoom) => updateDocument('zoom', zoom)}
           onPreviewModeChange={(mode) => updateDocument('previewMode', mode)}
           blockedMessage={blockingMessage}
         />
