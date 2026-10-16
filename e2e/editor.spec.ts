@@ -40,17 +40,21 @@ test('uses one compact toolbar row when space allows and wraps whole groups when
   ]) {
     await page.setViewportSize(size)
     const toolbar = page.locator('.app-header')
-    const layout = await toolbar.evaluate((element) => ({
-      height: element.getBoundingClientRect().height,
-      width: element.clientWidth,
-      contentWidth: element.scrollWidth,
-      centers: [...element.children].map((child) => {
-        const bounds = child.getBoundingClientRect()
-        return bounds.y + bounds.height / 2
-      }),
-    }))
+    const layout = await toolbar.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const bounds = [...element.children].map((child) => child.getBoundingClientRect())
+      return {
+        height: element.getBoundingClientRect().height,
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+        requiredWidth: bounds.reduce((width, child) => width + child.width, 0) +
+          parseFloat(style.columnGap) * (bounds.length - 1) +
+          parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+        centers: bounds.map((child) => child.y + child.height / 2),
+      }
+    })
     expect(layout.contentWidth).toBeLessThanOrEqual(layout.width)
-    if (size.width >= 1200) {
+    if (layout.requiredWidth <= layout.width) {
       expect(layout.height).toBe(52)
       expect(Math.max(...layout.centers) - Math.min(...layout.centers)).toBeLessThan(1)
     } else {
@@ -58,6 +62,7 @@ test('uses one compact toolbar row when space allows and wraps whole groups when
       if (size.width === 1000) {
         expect(new Set(layout.centers).size).toBe(2)
       }
+      if (size.width === 1440) expect(layout.height).toBe(52)
     }
     for (const group of [
       toolbar.getByRole('group', { name: 'Template and settings' }),
