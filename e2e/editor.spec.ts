@@ -30,6 +30,58 @@ test('loads three always-visible editors and the deterministic print preview', a
   expect(browserErrors).toEqual([])
 })
 
+test('uses one compact toolbar row when space allows and wraps whole groups when needed', async ({ page }) => {
+  for (const size of [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 800 },
+    { width: 1200, height: 800 },
+    { width: 1000, height: 800 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(size)
+    const toolbar = page.locator('.app-header')
+    const layout = await toolbar.evaluate((element) => ({
+      height: element.getBoundingClientRect().height,
+      width: element.clientWidth,
+      contentWidth: element.scrollWidth,
+      centers: [...element.children].map((child) => {
+        const bounds = child.getBoundingClientRect()
+        return bounds.y + bounds.height / 2
+      }),
+    }))
+    expect(layout.contentWidth).toBeLessThanOrEqual(layout.width)
+    if (size.width >= 1200) {
+      expect(layout.height).toBe(52)
+      expect(Math.max(...layout.centers) - Math.min(...layout.centers)).toBeLessThan(1)
+    } else {
+      expect(layout.height).toBeGreaterThan(52)
+      if (size.width === 1000) {
+        expect(new Set(layout.centers).size).toBe(2)
+      }
+    }
+    for (const group of [
+      toolbar.getByRole('group', { name: 'Template and settings' }),
+      toolbar.getByRole('region', { name: 'Printer settings' }),
+      toolbar.getByRole('group', { name: 'Printer', exact: true }),
+      toolbar.getByRole('group', { name: 'Print', exact: true }),
+    ]) {
+      const bounds = await group.boundingBox()
+      if (!bounds) throw new Error('Toolbar groups must remain visible.')
+      expect(bounds.x).toBeGreaterThanOrEqual(0)
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(size.width)
+    }
+    await expect(toolbar.getByRole('group', { name: 'Template and settings' })).toBeVisible()
+    await expect(toolbar.getByRole('region', { name: 'Printer settings' })).toBeVisible()
+    await expect(toolbar.getByRole('group', { name: 'Printer', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('group', { name: 'Print', exact: true })).toBeVisible()
+    await expect(page.locator('.control-bar')).toHaveCount(0)
+  }
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect(
+    page.getByRole('region', { name: 'Data', exact: true }).getByText('Row 1 of 3'),
+  ).toBeVisible()
+})
+
 test('persists zoom across edits, preview modes, data loading, and reloads', async ({
   page,
 }) => {

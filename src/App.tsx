@@ -391,18 +391,19 @@ function App() {
           <span className="brand-mark" aria-hidden="true">
             PT
           </span>
-          <div>
-            <h1>Label Editor</h1>
-            <p>Brother PT-P300BT</p>
-          </div>
+          <h1>Label Editor</h1>
         </div>
-        <div className="header-actions">
           <div
             className="template-file-actions"
             role="group"
             aria-label="Template and settings"
           >
-            <span className="file-actions-label">Template &amp; settings</span>
+            <span
+              className="file-actions-label"
+              title="HTML, CSS, and settings; CSV data is loaded separately."
+            >
+              Template
+            </span>
             <div className="file-action-buttons">
               <input
                 ref={templateInput}
@@ -432,6 +433,34 @@ function App() {
               </button>
             </div>
           </div>
+        <section className="toolbar-group render-settings" aria-label="Printer settings">
+            <label className="field-control">
+              <span>Tape</span>
+              <select
+                value={document.tapeWidthMm}
+                onChange={(event) =>
+                  updateDocument('tapeWidthMm', Number(event.target.value) as TapeWidthMm)
+                }
+              >
+                {TAPE_WIDTHS_MM.map((width) => (
+                  <option key={width} value={width}>{width} mm</option>
+                ))}
+              </select>
+            </label>
+            <label className="field-control threshold-control">
+              <span>Threshold</span>
+              <input
+                aria-label="Black threshold"
+                type="range"
+                min="0"
+                max="255"
+                value={document.threshold}
+                onChange={(event) => updateDocument('threshold', Number(event.target.value))}
+              />
+              <output>{document.threshold}</output>
+            </label>
+        </section>
+        <div className="toolbar-group printer-controls" role="group" aria-label="Printer">
           <span
             className={`printer-badge ${printerState}`}
             title={
@@ -448,7 +477,6 @@ function App() {
           </span>
           <button
             type="button"
-            className={printerState === 'disconnected' ? 'primary' : undefined}
             disabled={
               printerState === 'unsupported' ||
               printerState === 'connecting' ||
@@ -464,48 +492,7 @@ function App() {
             {printerActionLabel(printerState)}
           </button>
         </div>
-      </header>
-
-      <section className="control-bar" aria-label="Printer settings">
-        <label className="field-control">
-          <span>Tape</span>
-          <select
-            value={document.tapeWidthMm}
-            onChange={(event) =>
-              updateDocument(
-                'tapeWidthMm',
-                Number(event.target.value) as TapeWidthMm,
-              )
-            }
-          >
-            {TAPE_WIDTHS_MM.map((width) => (
-              <option key={width} value={width}>
-                {width} mm
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="field-control threshold-control">
-          <span>Black threshold</span>
-          <input
-            type="range"
-            min="0"
-            max="255"
-            value={document.threshold}
-            onChange={(event) =>
-              updateDocument('threshold', Number(event.target.value))
-            }
-          />
-          <output>{document.threshold}</output>
-        </label>
-
-        <span className="control-spacer" />
-        <span className="selection-status">
-          {csv.records.length === 0
-            ? 'No labels'
-            : `Row ${selectedRecord + 1} of ${csv.records.length}`}
-        </span>
+        <div className="toolbar-group print-controls" role="group" aria-label="Print">
         {printerState === 'printing' && printProgress && (
           <label className="print-progress">
             <span className="visually-hidden">Print transfer progress</span>
@@ -539,14 +526,24 @@ function App() {
         >
           Print strip
         </button>
-      </section>
+        </div>
+      </header>
 
       <section className="workspace">
         <EditorPanel
           key={dataFileRevision}
           id="data-editor"
           title="Data"
-          description="CSV - one record per label"
+          description={
+            <>
+              CSV -{' '}
+              <span className="selection-status">
+                {csv.records.length === 0
+                  ? 'No labels'
+                  : `Row ${selectedRecord + 1} of ${csv.records.length}`}
+              </span>
+            </>
+          }
           value={document.data}
           language="csv"
           diagnostics={dataDiagnostics}

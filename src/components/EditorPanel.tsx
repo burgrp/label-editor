@@ -22,7 +22,7 @@ export interface EditorDiagnostic {
 interface EditorPanelProps {
   id: string
   title: string
-  description: string
+  description: ReactNode
   value: string
   language: 'csv' | 'html' | 'css'
   diagnostics?: readonly EditorDiagnostic[]

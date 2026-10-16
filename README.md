@@ -38,6 +38,12 @@ one continuous job and cut once by hand.
 
 ## Preview navigation
 
+The single-row toolbar groups template import/export, tape and threshold,
+printer connection/status, and printing from left to right. **Print strip** is
+the primary action. The selected-row count is shown in the Data panel.
+On narrow screens, the toolbar wraps between groups, keeping related controls
+together instead of requiring horizontal scrolling.
+
 Data, HTML, and CSS sit side by side in the upper workspace, and a full-width preview occupies roughly
 30% of the screen height below them. Editors and preview scroll independently;
 the application itself stays within the viewport.
@@ -205,7 +211,7 @@ file. HTML, CSS, and settings remain unchanged. Malformed CSV is loaded into the
 editor with diagnostics; preview and printing stay blocked until it is fixed.
 Loading a file selects its first record.
 
-The header's **Template & settings** Import and Export buttons handle HTML, CSS,
+The toolbar's **Template** Import and Export buttons handle HTML, CSS,
 tape width, black threshold, preview mode, and zoom. Export downloads
 `label-template.json` without CSV data. Import preserves the current data and
 selection, and invalid template files leave the current document unchanged.
