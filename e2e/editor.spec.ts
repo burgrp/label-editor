@@ -7,21 +7,18 @@ test.beforeEach(async ({ page }) => {
   await page.reload()
 })
 
-test('loads the data editor, template tabs, and deterministic print preview', async ({
+test('loads three always-visible editors and the deterministic print preview', async ({
   page,
 }) => {
   const browserErrors: string[] = []
   page.on('pageerror', (error) => browserErrors.push(error.message))
 
   await expect(page.getByRole('heading', { name: 'Data' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Template' })).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'HTML' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await expect(page.getByRole('tab', { name: 'CSS' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'HTML', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'CSS', exact: true })).toBeVisible()
+  await expect(page.getByRole('tab')).toHaveCount(0)
   await expect(page.locator('#html-editor')).toBeVisible()
-  await expect(page.locator('#css-editor')).toBeHidden()
+  await expect(page.locator('#css-editor')).toBeVisible()
   await expect(page.getByLabel('Monochrome label preview')).toBeVisible()
   await expect(page.getByLabel('Preview zoom')).toHaveValue('1')
   await expect(page.locator('.zoom-control output')).toHaveText('1x')
@@ -84,28 +81,24 @@ test('links to icons, CSS documentation, and fonts at the bottom right', async (
   ).toBeCloseTo(12, 0)
 })
 
-test('switches template tabs with the mouse and keyboard without losing edits or undo history', async ({
+test('keeps HTML and CSS edits and undo history independent across panels', async ({
   page,
 }) => {
-  await page.getByRole('tab', { name: 'CSS' }).click()
-  await expect(page.locator('#html-editor')).toBeHidden()
   await setEditor(page, 'css-editor', '.label { width: 30mm; }')
   await expect.poll(() => previewLength(page)).toBeGreaterThan(29)
   await expect.poll(() => previewLength(page)).toBeLessThan(31)
 
-  await page.getByRole('tab', { name: 'CSS' }).press('ArrowLeft')
-  await expect(page.getByRole('tab', { name: 'HTML' })).toBeFocused()
-  await expect(page.locator('#html-editor .cm-content')).toContainText('{{0}}')
-  await expect(page.locator('#css-editor')).toBeHidden()
+  await setEditor(page, 'html-editor', '<strong>{{0}}</strong>')
+  await expect(page.locator('#html-editor .cm-content')).toContainText('<strong>{{0}}</strong>')
+  await expect(page.locator('#css-editor')).toBeVisible()
 
-  await page.getByRole('tab', { name: 'HTML' }).press('End')
-  await expect(page.getByRole('tab', { name: 'CSS' })).toBeFocused()
   await expect(page.locator('#css-editor .cm-content')).toContainText('30mm')
   await page.locator('#css-editor .cm-content').click()
   await page.keyboard.press(
     process.platform === 'darwin' ? 'Meta+Z' : 'Control+Z',
   )
   await expect(page.locator('#css-editor .cm-content')).toContainText('48mm')
+  await expect(page.locator('#html-editor .cm-content')).toContainText('<strong>{{0}}</strong>')
 })
 
 test('fits the screen with a full-width preview and internal editor scrolling', async ({
@@ -140,19 +133,28 @@ test('fits the screen with a full-width preview and internal editor scrolling', 
         windowWidth: size.width,
       })
 
-    const data = await page.locator('.editor-panel').first().boundingBox()
-    const template = await page.locator('.template-panel').boundingBox()
+    const data = await page.getByRole('region', { name: 'Data', exact: true }).boundingBox()
+    const html = await page.getByRole('region', { name: 'HTML', exact: true }).boundingBox()
+    const css = await page.getByRole('region', { name: 'CSS', exact: true }).boundingBox()
     const preview = await page.locator('.preview-panel').boundingBox()
-    if (!data || !template || !preview) {
+    if (!data || !html || !css || !preview) {
       throw new Error('All workspace panels must have visible bounds.')
     }
     expect(preview.y).toBeGreaterThanOrEqual(data.y + data.height)
-    expect(preview.y).toBeGreaterThanOrEqual(template.y + template.height)
+    expect(preview.y).toBeGreaterThanOrEqual(css.y + css.height)
+    expect(data.y).toBe(html.y)
+    expect(html.y).toBe(css.y)
+    expect(data.x + data.width).toBeLessThan(html.x)
+    expect(html.x + html.width).toBeLessThan(css.x)
+    for (const id of ['data-editor', 'html-editor', 'css-editor']) {
+      await expect(page.locator(`#${id} .cm-content`)).toBeVisible()
+      expect(await page.locator(`#${id} .cm-scroller`).evaluate(
+        (element) => element.clientHeight,
+      )).toBeGreaterThan(0)
+    }
     expect(preview.x).toBe(data.x)
     expect(Math.abs(preview.height - size.height * 0.3)).toBeLessThan(1)
-    if (size.width > 620) {
-      expect(preview.x + preview.width).toBe(template.x + template.width)
-    }
+    expect(preview.x + preview.width).toBe(css.x + css.width)
   }
 
   const editorSizes = await page
@@ -526,9 +528,7 @@ test('loads CSV data without changing the template or settings', async ({
   page,
 }) => {
   await page.getByLabel('Tape').selectOption('9')
-  await page.getByRole('tab', { name: 'CSS' }).click()
   await setEditor(page, 'css-editor', '.label { width: 30mm; }')
-  await page.getByRole('tab', { name: 'HTML' }).click()
   const html = await page.locator('#html-editor .cm-content').innerText()
   await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
 
@@ -555,7 +555,6 @@ test('loads CSV data without changing the template or settings', async ({
   await expect(page.locator('#html-editor .cm-content')).toHaveText(html, {
     useInnerText: true,
   })
-  await page.getByRole('tab', { name: 'CSS' }).click()
   await expect(page.locator('#css-editor .cm-content')).toContainText('30mm')
   await expect(page.locator('.preview-tapes canvas')).toHaveCount(2)
 

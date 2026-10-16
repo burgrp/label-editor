@@ -9,7 +9,7 @@ preview is sent to the printer.
 
 ## Features
 
-- Live CodeMirror editors for CSV data and a combined HTML/CSS panel with tabs.
+- Three always-visible CodeMirror panels in one row: Data, HTML, and CSS.
 - Standard quoted CSV records with cursor-driven selected-row preview.
 - Escaped zero-based placeholders such as `{{0}}` and `{{1}}`.
 - Per-record CSS classes and bundled Font Awesome Free icons.
@@ -38,7 +38,7 @@ one continuous job and cut once by hand.
 
 ## Preview navigation
 
-The editors share the upper workspace, and a full-width preview occupies roughly
+Data, HTML, and CSS sit side by side in the upper workspace, and a full-width preview occupies roughly
 30% of the screen height below them. Editors and preview scroll independently;
 the application itself stays within the viewport.
 

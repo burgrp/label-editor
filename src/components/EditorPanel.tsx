@@ -28,7 +28,6 @@ interface EditorPanelProps {
   diagnostics?: readonly EditorDiagnostic[]
   maxColumns?: number
   columnSamples?: readonly string[]
-  embedded?: boolean
   headerActions?: ReactNode
   onChange: (value: string) => void
   onCursorChange?: (offset: number) => void
@@ -43,7 +42,6 @@ export function EditorPanel({
   diagnostics = [],
   maxColumns = 0,
   columnSamples = [],
-  embedded = false,
   headerActions,
   onChange,
   onCursorChange,
@@ -113,27 +111,24 @@ export function EditorPanel({
 
   return (
     <section
-      className={`editor-panel ${embedded ? 'embedded-editor' : 'panel'}`}
-      aria-label={embedded ? title : undefined}
-      aria-labelledby={embedded ? undefined : `${id}-title`}
+      className="panel editor-panel"
+      aria-labelledby={`${id}-title`}
     >
-      {!embedded && (
-        <header className="panel-header">
-          <div>
-            <h2 id={`${id}-title`}>{title}</h2>
-            <p>{description}</p>
-          </div>
-          <div className="panel-actions">
-            {diagnostics.length > 0 && (
-              <span className="diagnostic-count" role="status">
-                {diagnostics.length}{' '}
-                {diagnostics.length === 1 ? 'issue' : 'issues'}
-              </span>
-            )}
-            {headerActions}
-          </div>
-        </header>
-      )}
+      <header className="panel-header">
+        <div>
+          <h2 id={`${id}-title`}>{title}</h2>
+          <p>{description}</p>
+        </div>
+        <div className="panel-actions">
+          {diagnostics.length > 0 && (
+            <span className="diagnostic-count" role="status">
+              {diagnostics.length}{' '}
+              {diagnostics.length === 1 ? 'issue' : 'issues'}
+            </span>
+          )}
+          {headerActions}
+        </div>
+      </header>
       <div className="editor-region">
         <CodeMirror
           id={id}

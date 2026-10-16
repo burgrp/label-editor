@@ -5,7 +5,6 @@ import {
   type EditorDiagnostic,
 } from './components/EditorPanel'
 import { PreviewPane } from './components/PreviewPane'
-import { TemplatePanel } from './components/TemplatePanel'
 import { findRecordIndexAtOffset, parseCsv } from './csv/parseCsv'
 import {
   TAPE_WIDTHS_MM,
@@ -575,15 +574,25 @@ function App() {
           onChange={(value) => updateDocument('data', value)}
           onCursorChange={setCursorOffset}
         />
-        <TemplatePanel
-          html={document.template}
-          css={document.css}
-          htmlDiagnostics={htmlDiagnostics}
-          cssDiagnostics={styleDiagnostics}
+        <EditorPanel
+          id="html-editor"
+          title="HTML"
+          description="Insert escaped values with {{0}}, {{1}}, ..."
+          value={document.template}
+          language="html"
+          diagnostics={htmlDiagnostics}
           maxColumns={csv.maxColumns}
           columnSamples={csv.records[0]?.values}
-          onHtmlChange={(value) => updateDocument('template', value)}
-          onCssChange={(value) => updateDocument('css', value)}
+          onChange={(value) => updateDocument('template', value)}
+        />
+        <EditorPanel
+          id="css-editor"
+          title="CSS"
+          description=".label height follows the selected tape"
+          value={document.css}
+          language="css"
+          diagnostics={styleDiagnostics}
+          onChange={(value) => updateDocument('css', value)}
         />
         <PreviewPane
           labels={labelMarkup}
