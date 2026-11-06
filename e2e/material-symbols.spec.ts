@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mockExo, mockGoogleFonts } from './helpers/googleFonts'
 
 async function setTemplate(page: Page, css: string, template: string, mode = 'selected') {
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'symbols.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({

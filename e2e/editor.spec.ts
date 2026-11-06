@@ -32,7 +32,7 @@ test('loads three always-visible editors and the deterministic print preview', a
   await expect(page.getByRole('button', { name: 'Load CSV' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save CSV' })).toBeVisible()
   await expect(
-    page.getByRole('group', { name: 'Template and settings', exact: true }),
+    page.getByRole('group', { name: 'Document', exact: true }),
   ).toBeVisible()
   expect(browserErrors).toEqual([])
 })
@@ -72,7 +72,7 @@ test('uses one compact toolbar row when space allows and wraps whole groups when
       if (size.width === 1440) expect(layout.height).toBe(52)
     }
     for (const group of [
-      toolbar.getByRole('group', { name: 'Template and settings' }),
+      toolbar.getByRole('group', { name: 'Document', exact: true }),
       toolbar.getByRole('region', { name: 'Printer settings' }),
       toolbar.getByRole('group', { name: 'Printer', exact: true }),
       toolbar.getByRole('group', { name: 'Print', exact: true }),
@@ -82,7 +82,7 @@ test('uses one compact toolbar row when space allows and wraps whole groups when
       expect(bounds.x).toBeGreaterThanOrEqual(0)
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(size.width)
     }
-    await expect(toolbar.getByRole('group', { name: 'Template and settings' })).toBeVisible()
+    await expect(toolbar.getByRole('group', { name: 'Document', exact: true })).toBeVisible()
     await expect(toolbar.getByRole('region', { name: 'Printer settings' })).toBeVisible()
     await expect(toolbar.getByRole('group', { name: 'Printer', exact: true })).toBeVisible()
     await expect(toolbar.getByRole('group', { name: 'Print', exact: true })).toBeVisible()
@@ -253,7 +253,7 @@ test('selects a CSV record from the editor cursor and composes the strip', async
 test('applies per-record classes in selected, strip, and wrapped previews', async ({
   page,
 }) => {
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'classes.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({
@@ -305,7 +305,7 @@ test('renders bundled solid, regular, and brand icons without network font reque
       fontRequests.push(request.url())
     }
   })
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'icons.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({
@@ -520,7 +520,7 @@ test('pans the strip by grabbing the canvas and stops when released outside', as
 test('keeps every raster column when wrapping labels with fractional pixel widths', async ({
   page,
 }) => {
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'fractional-labels.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({
@@ -750,7 +750,7 @@ test('preserves data and reports a CSV file read failure', async ({ page }) => {
   })
 })
 
-test('persists data while importing and exporting only template and settings', async ({
+test('preserves data when loading older templates and saves a complete document', async ({
   page,
 }) => {
   await setEditor(page, 'data-editor', 'saved,value')
@@ -775,7 +775,7 @@ test('persists data while importing and exporting only template and settings', a
     tapeWidthMm: 9,
     threshold: 140,
   }
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'imported.json',
     mimeType: 'application/json',
     buffer: Buffer.from(
@@ -783,7 +783,7 @@ test('persists data while importing and exporting only template and settings', a
     ),
   })
   await expect(
-    page.getByText('Imported template and settings from imported.json.'),
+    page.getByText('Loaded template and settings from imported.json; CSV data unchanged.'),
   ).toBeVisible()
   await expect(page.locator('#data-editor .cm-content')).toContainText(
     'saved,value',
@@ -797,7 +797,7 @@ test('persists data while importing and exporting only template and settings', a
     'true',
   )
 
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'invalid.json',
     mimeType: 'application/json',
     buffer: Buffer.from('{"version":99}'),
@@ -809,28 +809,26 @@ test('persists data while importing and exporting only template and settings', a
   await expect(page.locator('#html-editor .cm-content')).toContainText('<b>{{0}}</b>')
 
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export template and settings' }).click()
+  await page.getByRole('button', { name: 'Save JSON' }).click()
   const download = await downloadPromise
-  expect(download.suggestedFilename()).toBe('label-template.json')
+  expect(download.suggestedFilename()).toBe('label-document.json')
   expect(JSON.parse(await readFile(await download.path(), 'utf8'))).toStrictEqual(
-    template,
+    { ...template, data: 'saved,value' },
   )
 })
 
-test('keeps data and the selected row when importing an older full-document file', async ({
+test('loads data and selects the first row from an older full-document file', async ({
   page,
 }) => {
   await page.locator('#data-editor .cm-line').nth(1).click()
   await expect(page.getByText('Row 2 of 3')).toBeVisible()
-  const originalData = await page.locator('#data-editor .cm-content').innerText()
-
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'older-document.json',
     mimeType: 'application/json',
     buffer: Buffer.from(
       JSON.stringify({
         version: 1,
-        data: 'do,not,import',
+        data: 'first,restored\nsecond,restored',
         template: '<b>{{0}}</b>',
         css: '.label { width: 30mm; }',
         previewMode: 'selected',
@@ -841,13 +839,159 @@ test('keeps data and the selected row when importing an older full-document file
   })
 
   await expect(
-    page.getByText('Imported template and settings from older-document.json.'),
+    page.getByText('Loaded document from older-document.json.'),
   ).toBeVisible()
+  await expect(page.locator('#data-editor .cm-content')).toContainText('first,restored')
+  await expect(page.locator('#data-editor .cm-content')).toContainText('second,restored')
+  await expect(page.getByText('Row 1 of 2')).toBeVisible()
+  await expect(page.getByLabel('Preview zoom')).toHaveValue('1')
+  await expect(page.locator('#html-editor .cm-content')).toContainText('<b>{{0}}</b>')
+})
+
+test('keeps data and the selected row when loading a template-only file', async ({ page }) => {
+  await page.locator('#data-editor .cm-line').nth(1).click()
+  await expect(page.getByText('Row 2 of 3')).toBeVisible()
+  const originalData = await page.locator('#data-editor .cm-content').innerText()
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
+    name: 'template.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      template: '<b>{{0}}</b>',
+      css: '.label { width: 30mm; }',
+      previewMode: 'selected',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  await expect(page.getByText(
+    'Loaded template and settings from template.json; CSV data unchanged.',
+  )).toBeVisible()
   await expect(page.locator('#data-editor .cm-content')).toHaveText(originalData, {
     useInnerText: true,
   })
   await expect(page.getByText('Row 2 of 3')).toBeVisible()
-  await expect(page.locator('#html-editor .cm-content')).toContainText('<b>{{0}}</b>')
+})
+
+for (const [name, data] of [
+  ['quoted, multiline, and Unicode data',
+    '"Ada, Lovelace","say ""hello""",class:warning\n\n"two\nlines",Příliš žluťoučký,2026\n'],
+  ['CRLF line endings', 'first,value,class:compact\r\nsecond,value,\r\n'],
+  ['malformed CSV', 'one,"unfinished'],
+  ['empty data', ''],
+] as const) {
+  test(`round-trips design, settings, and exact ${name} through JSON`, async ({ page }) => {
+    const document = {
+      version: 1,
+      data,
+      template: '<b>{{0}}</b>',
+      css: '.label { width: 30mm; }',
+      previewMode: 'wrapped',
+      zoom: 4,
+      tapeWidthMm: 9,
+      threshold: 140,
+    }
+    const file = {
+      name: 'document.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(document)),
+    }
+    const input = page.getByLabel('Label document file', { exact: true })
+    await input.setInputFiles(file)
+    await expect(page.locator('.notice')).toContainText('Loaded')
+    await expect(page.locator('#html-editor .cm-content')).toHaveText(document.template)
+    await expect(page.locator('#css-editor .cm-content')).toHaveText(document.css)
+    await expect(page.getByLabel('Tape')).toHaveValue('9')
+    await expect(page.getByLabel('Black threshold')).toHaveValue('140')
+    await expect(page.getByLabel('Preview zoom')).toHaveValue('4')
+    await expect(page.getByRole('button', { name: 'Wrapped' })).toHaveAttribute(
+      'aria-pressed', 'true',
+    )
+    if (name === 'malformed CSV') {
+      await expect(page.locator('.notice.error')).toContainText(
+        'correct the CSV before printing:',
+      )
+      await expect(page.getByText(/Cannot preview or print:/)).toContainText(/quote/i)
+      await expect(page.locator('.preview-tapes canvas')).toHaveCount(0)
+    }
+
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem('brother-pt-label-editor.document.v1'),
+    )).toBe(JSON.stringify(document))
+    await page.reload()
+    const downloadPromise = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Save JSON' }).click()
+    const download = await downloadPromise
+    expect(download.suggestedFilename()).toBe('label-document.json')
+    const path = await download.path()
+    expect(JSON.parse(await readFile(path, 'utf8'))).toStrictEqual(document)
+
+    await setEditor(page, 'data-editor', 'temporary,data')
+    await input.setInputFiles(path)
+    await expect(page.locator('.notice')).toContainText('Loaded')
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem('brother-pt-label-editor.document.v1'),
+    )).toBe(JSON.stringify(document))
+
+    await setEditor(page, 'data-editor', 'another,edit')
+    await input.setInputFiles(path)
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem('brother-pt-label-editor.document.v1'),
+    )).toBe(JSON.stringify(document))
+  })
+}
+
+test('rejects invalid JSON data without changing the document or selected row', async ({ page }) => {
+  await page.locator('#data-editor .cm-line').nth(1).click()
+  await expect(page.getByText('Row 2 of 3')).toBeVisible()
+  const originalData = await page.locator('#data-editor .cm-content').innerText()
+  const originalHtml = await page.locator('#html-editor .cm-content').innerText()
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
+    name: 'invalid-data.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      data: null,
+      template: '<b>Must not replace the design</b>',
+      css: '.label { width: 30mm; }',
+      previewMode: 'wrapped',
+      zoom: 6,
+      tapeWidthMm: 9,
+      threshold: 140,
+    })),
+  })
+  await expect(page.locator('.notice.error')).toContainText('data must be a string')
+  await expect(page.locator('#data-editor .cm-content')).toHaveText(originalData, {
+    useInnerText: true,
+  })
+  await expect(page.locator('#html-editor .cm-content')).toHaveText(originalHtml, {
+    useInnerText: true,
+  })
+  await expect(page.getByText('Row 2 of 3')).toBeVisible()
+  await expect(page.getByLabel('Tape')).toHaveValue('12')
+})
+
+test('surfaces JSON file read and download failures without losing data', async ({ page }) => {
+  const originalData = await page.locator('#data-editor .cm-content').innerText()
+  await page.evaluate(() => {
+    File.prototype.text = () => Promise.reject(new Error('File read denied.'))
+    URL.createObjectURL = () => { throw new Error('Download unavailable') }
+  })
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
+    name: 'unreadable.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from('{}'),
+  })
+  await expect(page.locator('.notice.error')).toHaveText(
+    /Could not load document: File read denied./,
+  )
+  await page.getByRole('button', { name: 'Save JSON' }).click()
+  await expect(page.locator('.notice.error')).toHaveText(
+    /Could not save document: Download unavailable/,
+  )
+  await expect(page.locator('#data-editor .cm-content')).toHaveText(originalData, {
+    useInnerText: true,
+  })
 })
 
 async function setEditor(page: Page, id: string, value: string): Promise<void> {

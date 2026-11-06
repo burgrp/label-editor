@@ -25,7 +25,7 @@
 
 .brand,
 .toolbar-group,
-.template-file-actions,
+.document-file-actions,
 .field-control,
 .zoom-control,
 .status-bar {
@@ -65,7 +65,7 @@
 }
 
 .toolbar-group,
-.template-file-actions {
+.document-file-actions {
   flex: 0 0 auto;
   gap: 10px;
   padding-left: 10px;

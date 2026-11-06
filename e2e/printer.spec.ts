@@ -145,7 +145,7 @@ for (const mode of ['selected', 'strip'] as const) {
     await installSuccessfulSerialMock(page, 12)
     await mockGoogleFonts(page)
     await page.goto('/')
-    await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+    await page.getByLabel('Label document file', { exact: true }).setInputFiles({
       name: 'classes.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({
@@ -226,7 +226,7 @@ test('does not send a print job when its Google font fails to load', async ({ pa
   await page.goto('/')
   await page.getByRole('button', { name: 'Connect printer' }).click()
   await expect(page.getByRole('button', { name: 'Disconnect' })).toBeEnabled()
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'missing-font.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 async function setFontTemplate(page: Page, css: string, template = '<span>&#xf111;</span>') {
-  await page.getByLabel('Template and settings file', { exact: true }).setInputFiles({
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
     name: 'google-fonts.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({

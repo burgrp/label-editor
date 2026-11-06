@@ -8,10 +8,10 @@ import {
 } from './document'
 import {
   DOCUMENT_STORAGE_KEY,
-  importTemplateJson,
+  importDocumentJson,
   loadDocument,
   saveDocument,
-  serializeTemplate,
+  serializeDocument,
   type StorageAdapter,
 } from './storage'
 
@@ -84,7 +84,7 @@ describe('label document validation', () => {
     const storage = memoryStorage()
     saveDocument(document, storage)
     expect(loadDocument(storage)).toEqual({ document })
-    expect(importTemplateJson(serializeTemplate(document)).zoom).toBe(zoom)
+    expect(importDocumentJson(serializeDocument(document)).zoom).toBe(zoom)
   })
 
   it.each([0, 9, 1.5, NaN, Infinity, '3', null])('rejects invalid zoom %s', (zoom) => {
@@ -96,13 +96,13 @@ describe('label document validation', () => {
     const storage = memoryStorage()
     storage.setItem(DOCUMENT_STORAGE_KEY, JSON.stringify(legacy))
     expect(loadDocument(storage)).toEqual({ document: { ...legacy, zoom: 1 } })
-    expect(importTemplateJson(JSON.stringify(legacy)).zoom).toBe(1)
+    expect(importDocumentJson(JSON.stringify(legacy)).zoom).toBe(1)
   })
 })
 
-describe('template files', () => {
+describe('document files', () => {
   it.each(PREVIEW_MODES)(
-    'exports and imports only template and settings in %s mode',
+    'saves and loads the complete document in %s mode',
     (previewMode) => {
       const template: LabelTemplate = {
         version: 1,
@@ -114,26 +114,48 @@ describe('template files', () => {
         threshold: 140,
       }
       const document = { ...template, data: 'Alice,Engineering' }
-      const json = serializeTemplate(document)
+      const json = serializeDocument(document)
 
-      expect(JSON.parse(json)).toStrictEqual(template)
-      expect(importTemplateJson(json)).toStrictEqual(template)
+      expect(JSON.parse(json)).toStrictEqual(document)
+      expect(importDocumentJson(json)).toStrictEqual(document)
     },
   )
 
-  it('ignores CSV data in older full-document exports', () => {
-    const imported = importTemplateJson(JSON.stringify(DEFAULT_DOCUMENT))
+  it('loads older template-only files without adding data', () => {
+    const { data: _data, zoom: _zoom, ...template } = DEFAULT_DOCUMENT
+    const imported = importDocumentJson(JSON.stringify(template))
 
     expect(imported).not.toHaveProperty('data')
-    expect(imported.template).toBe(DEFAULT_DOCUMENT.template)
-    expect(imported.css).toBe(DEFAULT_DOCUMENT.css)
-    expect(imported.tapeWidthMm).toBe(DEFAULT_DOCUMENT.tapeWidthMm)
+    expect(imported).toStrictEqual({ ...template, zoom: 1 })
+  })
+
+  it.each([
+    '"Ada, Lovelace","say ""hello""",class:warning\n\n"two\nlines",Příliš žluťoučký,2026\n',
+    'first,value,class:compact\r\nsecond,value,\r\n',
+    'one,"unfinished',
+    '',
+  ])('preserves the exact CSV text: %j', (data) => {
+    const document = { ...DEFAULT_DOCUMENT, data }
+    const json = serializeDocument(document)
+
+    expect(JSON.parse(json)).toStrictEqual(document)
+    expect(importDocumentJson(json)).toStrictEqual(document)
+  })
+
+  it.each([null, 42, [], {}, false])('rejects invalid data instead of treating it as a template: %j', (data) => {
+    const json = JSON.stringify({ ...DEFAULT_DOCUMENT, data })
+
+    expect(() => importDocumentJson(json)).toThrow(/data must be a string/)
+  })
+
+  it('validates documents before saving', () => {
+    expect(() => serializeDocument({ ...DEFAULT_DOCUMENT, zoom: 0 })).toThrow(/zoom/)
   })
 
   it.each(['not JSON', 'null', '[]', '{"version":99}'])(
-    'rejects an invalid template file: %s',
+    'rejects an invalid document file: %s',
     (json) => {
-      expect(() => importTemplateJson(json)).toThrow()
+      expect(() => importDocumentJson(json)).toThrow()
     },
   )
 })

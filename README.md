@@ -19,7 +19,7 @@ preview is sent to the printer.
   and grab-to-pan scrolling.
 - Physical 3.5, 6, 9, and 12 mm tape sizing at 180 DPI.
 - Safe, self-contained templates: no scripts or remote resources.
-- CSV-file loading, browser auto-save, and template/settings JSON import/export.
+- CSV import/export, browser auto-save, and complete-document JSON load/save.
 - Direct PT-P300BT printing through Web Serial over Bluetooth Classic SPP.
 - Static deployment with no backend or cloud account.
 
@@ -39,7 +39,7 @@ one continuous job and cut once by hand.
 
 ## Preview navigation
 
-The single-row toolbar groups template import/export, tape and threshold,
+The single-row toolbar groups document load/save, tape and threshold,
 printer connection/status, and printing from left to right. **Print strip** is
 the primary action. The selected-row count is shown in the Data panel.
 On narrow screens, the toolbar wraps between groups, keeping related controls
@@ -60,7 +60,7 @@ continuous strip in CSV order. The selected preview mode is saved with the
 document.
 
 Zoom is saved with the other document settings, restored on reload, and included
-in template import/export. New documents and older files without a zoom setting
+in JSON load/save. New documents and older files without a zoom setting
 start at **1x**. At **1x**, the tape is displayed in physical CSS
 millimetres instead of mapping one 180-DPI printer dot to one screen pixel.
 The apparent real-world size still depends on browser zoom and display scaling.
@@ -248,12 +248,12 @@ their icon names via `icon_names`. Subsequent renders can use cached fonts offli
 a new uncached family or weight still requires internet access. Clearing this
 site's browser storage removes the persistent font cache.
 
-Template JSON files retain the CSS family names, not font binaries. Recipients
+Document JSON files retain the CSS family names, not font binaries. Recipients
 download/cache the fonts on first use. Arbitrary CSS `@import` and remote URLs
 remain blocked: only the application's explicit Google Fonts loader can fetch
 font assets.
 
-## Loading data and sharing templates
+## Loading data and saving documents
 
 Use **Load CSV** in the Data panel to replace the label data from a UTF-8 CSV
 file. HTML, CSS, and settings remain unchanged. Malformed CSV is loaded into the
@@ -265,11 +265,21 @@ exact editor data without reformatting quotes, line endings, blank records, or
 `class:` annotations. Empty or unfinished CSV can also be saved. Saving CSV does
 not change the template or settings.
 
-The toolbar's **Template** Import and Export buttons handle HTML, CSS,
-tape width, black threshold, preview mode, and zoom. Export downloads
-`label-template.json` without CSV data. Import preserves the current data and
-selection, and invalid template files leave the current document unchanged.
-Older full-document JSON exports can still be imported; their data is ignored.
+The toolbar's **Document** group provides **Load JSON** and **Save JSON**.
+Saving downloads `label-document.json` with the complete document: CSV data,
+HTML, CSS, tape width, black threshold, preview mode, and zoom. The data is
+stored as the exact CSV text, preserving quotes, line endings, blank records,
+and `class:` annotations. Empty or unfinished CSV can also be saved.
+
+Loading JSON restores the design, data, and settings together and selects the
+first record. Malformed CSV is restored with diagnostics and blocks preview
+and printing until corrected. Invalid JSON or document fields leave the
+current document unchanged.
+
+Older template-only JSON files are still supported: loading one replaces the
+design and settings while preserving the current CSV data and selection, with
+a notice that the data was left unchanged. Older full-document files restore
+their data as well.
 
 Browser auto-save continues to preserve the entire current document, including
 its CSV data.

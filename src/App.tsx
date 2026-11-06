@@ -12,10 +12,10 @@ import {
   type TapeWidthMm,
 } from './model/document'
 import {
-  importTemplateJson,
+  importDocumentJson,
   loadDocument,
   saveDocument,
-  serializeTemplate,
+  serializeDocument,
 } from './model/storage'
 import {
   PrinterError,
@@ -71,7 +71,7 @@ function App() {
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus | null>(null)
   const [printProgress, setPrintProgress] =
     useState<PrintProgressState | null>(null)
-  const templateInput = useRef<HTMLInputElement>(null)
+  const documentInput = useRef<HTMLInputElement>(null)
   const dataInput = useRef<HTMLInputElement>(null)
   const printerRef = useRef<PTP300BTPrinter | null>(null)
 
@@ -169,14 +169,14 @@ function App() {
     [],
   )
 
-  const handleTemplateExport = () => {
+  const handleSaveDocument = () => {
     try {
-      downloadTextFile(serializeTemplate(document), 'label-template.json', 'application/json')
-      setNotice({ kind: 'info', message: 'Template and settings exported.' })
+      downloadTextFile(serializeDocument(document), 'label-document.json', 'application/json')
+      setNotice({ kind: 'info', message: 'Document saved with design, data, and settings.' })
     } catch (error) {
       setNotice({
         kind: 'error',
-        message: `Could not export template and settings: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Could not save document: ${error instanceof Error ? error.message : String(error)}`,
       })
     }
   }
@@ -193,25 +193,41 @@ function App() {
     }
   }
 
-  const handleTemplateImport = async (file: File | undefined) => {
+  const handleLoadDocument = async (file: File | undefined) => {
     if (!file) {
       return
     }
     try {
-      const imported = importTemplateJson(await file.text())
+      const imported = importDocumentJson(await file.text())
+      const dataError = 'data' in imported
+        ? parseCsv(imported.data).diagnostics[0]
+        : undefined
       setDocument((current) => ({ ...current, ...imported }))
-      setNotice({
-        kind: 'info',
-        message: `Imported template and settings from ${file.name}.`,
-      })
+      if ('data' in imported) {
+        setCursorOffset(0)
+        setDataFileRevision((revision) => revision + 1)
+      }
+      setNotice(
+        dataError
+          ? {
+              kind: 'error',
+              message: `Loaded ${file.name}; correct the CSV before printing: ${dataError.message}`,
+            }
+          : {
+              kind: 'info',
+              message: 'data' in imported
+                ? `Loaded document from ${file.name}.`
+                : `Loaded template and settings from ${file.name}; CSV data unchanged.`,
+            },
+      )
     } catch (error) {
       setNotice({
         kind: 'error',
-        message: `Could not import template and settings: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Could not load document: ${error instanceof Error ? error.message : String(error)}`,
       })
     } finally {
-      if (templateInput.current) {
-        templateInput.current.value = ''
+      if (documentInput.current) {
+        documentInput.current.value = ''
       }
     }
   }
@@ -405,42 +421,40 @@ function App() {
           <h1>Label Editor</h1>
         </div>
           <div
-            className="template-file-actions"
+            className="document-file-actions"
             role="group"
-            aria-label="Template and settings"
+            aria-label="Document"
           >
             <span
               className="file-actions-label"
-              title="HTML, CSS, and settings; CSV data is loaded separately."
+              title="Save and load the complete design, CSV data, and settings."
             >
-              Template
+              Document
             </span>
             <div className="file-action-buttons">
               <input
-                ref={templateInput}
+                ref={documentInput}
                 className="visually-hidden"
                 type="file"
-                aria-label="Template and settings file"
+                aria-label="Label document file"
                 accept="application/json,.json"
                 onChange={(event) =>
-                  void handleTemplateImport(event.target.files?.[0])
+                  void handleLoadDocument(event.target.files?.[0])
                 }
               />
               <button
                 type="button"
-                aria-label="Import template and settings"
-                title="Import HTML, CSS, and settings; keep CSV data unchanged."
-                onClick={() => templateInput.current?.click()}
+                title="Load design, CSV data, and settings from JSON. Older template-only files keep the current CSV data."
+                onClick={() => documentInput.current?.click()}
               >
-                Import
+                Load JSON
               </button>
               <button
                 type="button"
-                aria-label="Export template and settings"
-                title="Export HTML, CSS, and settings without CSV data."
-                onClick={handleTemplateExport}
+                title="Save design, CSV data, and settings together as JSON."
+                onClick={handleSaveDocument}
               >
-                Export
+                Save JSON
               </button>
             </div>
           </div>

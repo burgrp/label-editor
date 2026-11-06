@@ -57,18 +57,20 @@ export function saveDocument(
   }
 }
 
-export function serializeTemplate(template: LabelTemplate): string {
-  return `${JSON.stringify(parseLabelTemplate(template), null, 2)}\n`
+export function serializeDocument(document: LabelDocument): string {
+  return `${JSON.stringify(parseLabelDocument(document), null, 2)}\n`
 }
 
-export function importTemplateJson(json: string): LabelTemplate {
+export function importDocumentJson(json: string): LabelDocument | LabelTemplate {
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
   } catch (error) {
     throw new Error(`The selected file is not valid JSON: ${errorMessage(error)}`)
   }
-  return parseLabelTemplate(parsed)
+  return typeof parsed === 'object' && parsed !== null && 'data' in parsed
+    ? parseLabelDocument(parsed)
+    : parseLabelTemplate(parsed)
 }
 
 function errorMessage(error: unknown): string {
