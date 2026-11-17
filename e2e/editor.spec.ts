@@ -223,7 +223,7 @@ test('fits the screen with a full-width preview and internal editor scrolling', 
       await expect(page.locator(`#${id} .cm-content`)).toBeVisible()
       expect(await page.locator(`#${id} .cm-scroller`).evaluate(
         (element) => element.clientHeight,
-      )).toBeGreaterThan(0)
+      )).toBeGreaterThanOrEqual(16)
     }
     expect(preview.x).toBe(data.x)
     expect(Math.abs(preview.height - size.height * 0.3)).toBeLessThan(1)
@@ -238,6 +238,16 @@ test('fits the screen with a full-width preview and internal editor scrolling', 
     }))
   expect(editorSizes.contentHeight).toBeGreaterThan(editorSizes.viewportHeight)
   expect(editorSizes.viewportHeight).toBeGreaterThan(0)
+})
+
+test('keeps panel headers from squeezing out editors with wider system fonts', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 400 })
+  await page.addStyleTag({ content: '.editor-panel { font-family: monospace; }' })
+  for (const id of ['data-editor', 'html-editor', 'css-editor']) {
+    await expect.poll(() => page.locator(`#${id} .cm-scroller`).evaluate(
+      (element) => element.clientHeight,
+    )).toBeGreaterThan(0)
+  }
 })
 
 test('selects a CSV record from the editor cursor and composes the strip', async ({
