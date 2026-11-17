@@ -18,6 +18,13 @@ import {
   serializeDocument,
 } from './model/storage'
 import {
+  CSV_FILE_TYPE,
+  JSON_FILE_TYPE,
+  downloadTextFile,
+  getFilePickers,
+  writeTextFile,
+} from './model/files'
+import {
   PrinterError,
   PTP300BTPrinter,
   WebSerialTransport,
@@ -42,6 +49,12 @@ interface Notice {
   message: string
 }
 
+interface DocumentFile {
+  name: string
+  handle: FileSystemFileHandle | null
+  savedContent: string | null
+}
+
 type PrinterState =
   | 'unsupported'
   | 'disconnected'
@@ -60,6 +73,13 @@ function App() {
   const initial = useMemo(() => loadDocument(), [])
   const serialSupported = useMemo(() => hasWebSerialSupport(), [])
   const [document, setDocument] = useState<LabelDocument>(initial.document)
+  const [documentFile, setDocumentFile] = useState<DocumentFile>({
+    name: 'label-document.json',
+    handle: null,
+    savedContent: null,
+  })
+  const [fileBusy, setFileBusy] = useState(false)
+  const hasUnsavedChanges = documentFile.savedContent !== JSON.stringify(document)
   const [cursorOffset, setCursorOffset] = useState(0)
   const [dataFileRevision, setDataFileRevision] = useState(0)
   const [notice, setNotice] = useState<Notice | null>(
@@ -169,40 +189,92 @@ function App() {
     [],
   )
 
-  const handleSaveDocument = () => {
+  const handleSaveDocument = async (saveAs = false) => {
+    setFileBusy(true)
     try {
-      downloadTextFile(serializeDocument(document), 'label-document.json', 'application/json')
-      setNotice({ kind: 'info', message: 'Document saved with design, data, and settings.' })
+      const json = serializeDocument(document)
+      const pickers = getFilePickers()
+      let handle = saveAs ? null : documentFile.handle
+      if (!handle && pickers) {
+        handle = await pickers.save({
+          types: [JSON_FILE_TYPE],
+          suggestedName: documentFile.name,
+        })
+        if (!handle) return
+      }
+      if (handle) {
+        await writeTextFile(handle, json)
+      } else {
+        downloadTextFile(json, documentFile.name, 'application/json')
+      }
+      const name = handle?.name ?? documentFile.name
+      setDocumentFile({ name, handle, savedContent: JSON.stringify(document) })
+      setNotice({
+        kind: 'info',
+        message: handle
+          ? `Saved document to ${name}.`
+          : `Downloaded ${name} with design, data, and settings.`,
+      })
     } catch (error) {
       setNotice({
         kind: 'error',
         message: `Could not save document: ${error instanceof Error ? error.message : String(error)}`,
       })
+    } finally {
+      setFileBusy(false)
     }
   }
 
-  const handleSaveData = () => {
+  const handleExportData = async () => {
+    setFileBusy(true)
     try {
-      downloadTextFile(document.data, 'label-data.csv', 'text/csv;charset=utf-8')
-      setNotice({ kind: 'info', message: 'CSV data downloaded.' })
+      const pickers = getFilePickers()
+      if (pickers) {
+        const handle = await pickers.save({
+          types: [CSV_FILE_TYPE],
+          suggestedName: 'label-data.csv',
+        })
+        if (!handle) return
+        await writeTextFile(handle, document.data)
+        setNotice({ kind: 'info', message: `Exported CSV data to ${handle.name}.` })
+      } else {
+        downloadTextFile(document.data, 'label-data.csv', 'text/csv;charset=utf-8')
+        setNotice({ kind: 'info', message: 'CSV data downloaded.' })
+      }
     } catch (error) {
       setNotice({
         kind: 'error',
-        message: `Could not save CSV data: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Could not export CSV data: ${error instanceof Error ? error.message : String(error)}`,
       })
+    } finally {
+      setFileBusy(false)
     }
   }
 
-  const handleLoadDocument = async (file: File | undefined) => {
-    if (!file) {
+  const handleOpenDocument = async (uploadedFile?: File) => {
+    const pickers = getFilePickers()
+    if (!uploadedFile && !pickers) {
+      documentInput.current?.click()
       return
     }
+    setFileBusy(true)
     try {
+      const handle = !uploadedFile && pickers
+        ? await pickers.open({ types: [JSON_FILE_TYPE], multiple: false })
+        : null
+      if (!uploadedFile && !handle) return
+      const file = uploadedFile ?? await handle?.getFile()
+      if (!file) throw new Error('The selected file could not be read.')
       const imported = importDocumentJson(await file.text())
       const dataError = 'data' in imported
         ? parseCsv(imported.data).diagnostics[0]
         : undefined
       setDocument((current) => ({ ...current, ...imported }))
+      setDocumentFile({
+        name: file.name,
+        handle,
+        savedContent: 'data' in imported ? JSON.stringify(imported) : null,
+      })
       if ('data' in imported) {
         setCursorOffset(0)
         setDataFileRevision((revision) => revision + 1)
@@ -226,6 +298,7 @@ function App() {
         message: `Could not load document: ${error instanceof Error ? error.message : String(error)}`,
       })
     } finally {
+      setFileBusy(false)
       if (documentInput.current) {
         documentInput.current.value = ''
       }
@@ -237,6 +310,7 @@ function App() {
       return
     }
 
+    setFileBusy(true)
     try {
       const data = (await file.text()).replace(/^\uFEFF/, '')
       const parsed = parseCsv(data)
@@ -258,6 +332,7 @@ function App() {
         message: `Could not load CSV data: ${error instanceof Error ? error.message : String(error)}`,
       })
     } finally {
+      setFileBusy(false)
       if (dataInput.current) {
         dataInput.current.value = ''
       }
@@ -425,12 +500,17 @@ function App() {
             role="group"
             aria-label="Document"
           >
-            <span
-              className="file-actions-label"
-              title="Save and load the complete design, CSV data, and settings."
-            >
-              Document
-            </span>
+            <div className="document-file-name">
+              <span className="file-actions-label">Document</span>
+              <span
+                className="current-file"
+                aria-label="Current document"
+                title={`${documentFile.name}${hasUnsavedChanges ? ' (unsaved changes)' : ''}`}
+              >
+                <span className="current-file-name">{documentFile.name}</span>
+                {hasUnsavedChanges && <span className="unsaved-indicator"> *</span>}
+              </span>
+            </div>
             <div className="file-action-buttons">
               <input
                 ref={documentInput}
@@ -438,23 +518,35 @@ function App() {
                 type="file"
                 aria-label="Label document file"
                 accept="application/json,.json"
-                onChange={(event) =>
-                  void handleLoadDocument(event.target.files?.[0])
-                }
+                disabled={fileBusy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) void handleOpenDocument(file)
+                }}
               />
               <button
                 type="button"
                 title="Load design, CSV data, and settings from JSON. Older template-only files keep the current CSV data."
-                onClick={() => documentInput.current?.click()}
+                disabled={fileBusy}
+                onClick={() => void handleOpenDocument()}
               >
-                Load JSON
+                Open JSON
               </button>
               <button
                 type="button"
-                title="Save design, CSV data, and settings together as JSON."
-                onClick={handleSaveDocument}
+                title="Save the complete JSON document to the current file, or choose a file for a new document."
+                disabled={fileBusy}
+                onClick={() => void handleSaveDocument()}
               >
-                Save JSON
+                Save
+              </button>
+              <button
+                type="button"
+                title="Choose a new JSON file and make it the current document."
+                disabled={fileBusy}
+                onClick={() => void handleSaveDocument(true)}
+              >
+                Save As...
               </button>
             </div>
           </div>
@@ -580,6 +672,7 @@ function App() {
                 type="file"
                 aria-label="CSV data file"
                 accept=".csv,text/csv,text/plain"
+                disabled={fileBusy}
                 onChange={(event) =>
                   void handleLoadData(event.target.files?.[0])
                 }
@@ -587,16 +680,18 @@ function App() {
               <button
                 type="button"
                 title="Load CSV data without changing the template or settings."
+                disabled={fileBusy}
                 onClick={() => dataInput.current?.click()}
               >
-                Load CSV
+                Import CSV...
               </button>
               <button
                 type="button"
-                title="Download the current CSV text without changing the template or settings."
-                onClick={handleSaveData}
+                title="Export the exact CSV text without changing the current JSON file."
+                disabled={fileBusy}
+                onClick={() => void handleExportData()}
               >
-                Save CSV
+                Export CSV...
               </button>
             </>
           }
@@ -707,18 +802,6 @@ function App() {
 }
 
 export default App
-
-function downloadTextFile(text: string, filename: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type }))
-  try {
-    const anchor = window.document.createElement('a')
-    anchor.href = url
-    anchor.download = filename
-    anchor.click()
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
 
 function hasWebSerialSupport(): boolean {
   if (

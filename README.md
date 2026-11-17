@@ -255,19 +255,32 @@ font assets.
 
 ## Loading data and saving documents
 
-Use **Load CSV** in the Data panel to replace the label data from a UTF-8 CSV
+Use **Import CSV...** in the Data panel to replace the label data from a UTF-8 CSV
 file. HTML, CSS, and settings remain unchanged. Malformed CSV is loaded into the
 editor with diagnostics; preview and printing stay blocked until it is fixed.
 Loading a file selects its first record.
 
-Use **Save CSV** next to it to download `label-data.csv` as UTF-8. This saves the
+Use **Export CSV...** next to it to choose a CSV file and save it as UTF-8. This saves the
 exact editor data without reformatting quotes, line endings, blank records, or
-`class:` annotations. Empty or unfinished CSV can also be saved. Saving CSV does
-not change the template or settings.
+`class:` annotations. Empty or unfinished CSV can also be saved. Exporting CSV
+does not change the design, settings, or current JSON file.
 
-The toolbar's **Document** group provides **Load JSON** and **Save JSON**.
-Saving downloads `label-document.json` with the complete document: CSV data,
-HTML, CSS, tape width, black threshold, preview mode, and zoom. The data is
+The toolbar's **Document** group provides **Open JSON**, **Save**, and **Save As...**:
+
+- **Open JSON** reads a file and makes it the current document.
+- **Save** writes back to that file. For a new document, it asks for a filename
+  and location, initially suggesting `label-document.json`.
+- **Save As...** always asks for a file and makes it the current document only
+  after a successful write.
+
+The current filename is shown beside the buttons; `*` indicates changes not
+yet saved to that file. Changes made while a save is in progress remain marked
+as unsaved. Cancelling a dialog leaves the document and current file unchanged.
+Read, permission, and write errors are reported without silently downloading
+a replacement or switching the current file.
+
+JSON saves include the complete document: CSV data, HTML, CSS, tape width,
+black threshold, preview mode, and zoom. The data is
 stored as the exact CSV text, preserving quotes, line endings, blank records,
 and `class:` annotations. Empty or unfinished CSV can also be saved.
 
@@ -282,7 +295,15 @@ a notice that the data was left unchanged. Older full-document files restore
 their data as well.
 
 Browser auto-save continues to preserve the entire current document, including
-its CSV data.
+its CSV data, independently of explicit file saves. File handles are kept only
+for the current tab session: after a reload, the recovered document is marked
+unsaved and **Save** asks for a file again.
+
+Native open/save dialogs use the File System Access API in supported desktop
+Chrome/Edge browsers over HTTPS or localhost. Other browsers fall back to file
+uploads and downloads: **Save** and **Save As...** download JSON, and
+**Export CSV...** downloads `label-data.csv`. In fallback mode an existing file
+cannot be overwritten directly.
 
 ## Development
 

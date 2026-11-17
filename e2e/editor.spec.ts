@@ -3,6 +3,10 @@ import { readFile } from 'node:fs/promises'
 import { mockExo } from './helpers/googleFonts'
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: undefined })
+    Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined })
+  })
   await mockExo(page)
   await page.goto('/')
   await page.evaluate(() => window.localStorage.clear())
@@ -29,8 +33,8 @@ test('loads three always-visible editors and the deterministic print preview', a
   await expect(page.getByLabel('Preview zoom')).toHaveValue('1')
   await expect(page.locator('.zoom-control output')).toHaveText('1x')
   await expect(page.getByText('3 labels ready')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Load CSV' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Save CSV' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Import CSV...' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export CSV...' })).toBeVisible()
   await expect(
     page.getByRole('group', { name: 'Document', exact: true }),
   ).toBeVisible()
@@ -629,7 +633,7 @@ test('loads CSV data without changing the template or settings', async ({
   await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
 
   const chooserPromise = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Load CSV' }).click()
+  await page.getByRole('button', { name: 'Import CSV...' }).click()
   const chooser = await chooserPromise
   const csvFile = {
     name: 'labels.csv',
@@ -702,7 +706,7 @@ for (const [name, text] of [
     }
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('region', { name: 'Data', exact: true })
-      .getByRole('button', { name: 'Save CSV' }).click()
+      .getByRole('button', { name: 'Export CSV...' }).click()
     const download = await downloadPromise
     expect(download.suggestedFilename()).toBe('label-data.csv')
     expect(await readFile(await download.path(), 'utf8')).toBe(text)
@@ -722,9 +726,9 @@ test('surfaces CSV download failures without losing editor data', async ({ page 
   await page.evaluate(() => {
     URL.createObjectURL = () => { throw new Error('Download unavailable') }
   })
-  await page.getByRole('button', { name: 'Save CSV' }).click()
+  await page.getByRole('button', { name: 'Export CSV...' }).click()
   await expect(page.locator('.notice.error')).toHaveText(
-    /Could not save CSV data: Download unavailable/,
+    /Could not export CSV data: Download unavailable/,
   )
   await expect(page.locator('#data-editor .cm-content')).toHaveText(data, {
     useInnerText: true,
@@ -809,12 +813,40 @@ test('preserves data when loading older templates and saves a complete document'
   await expect(page.locator('#html-editor .cm-content')).toContainText('<b>{{0}}</b>')
 
   const downloadPromise = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Save JSON' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   const download = await downloadPromise
-  expect(download.suggestedFilename()).toBe('label-document.json')
+  expect(download.suggestedFilename()).toBe('imported.json')
   expect(JSON.parse(await readFile(await download.path(), 'utf8'))).toStrictEqual(
     { ...template, data: 'saved,value' },
   )
+})
+
+test('opens JSON through a file input and supports Save As downloads without native pickers', async ({ page }) => {
+  const chooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Open JSON' }).click()
+  await (await chooserPromise).setFiles({
+    name: 'fallback.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      data: 'fallback,data',
+      template: '<b>{{0}}</b>',
+      css: '.label { width: 30mm; }',
+      previewMode: 'selected',
+      zoom: 1,
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+  await expect(page.getByLabel('Current document')).toHaveText('fallback.json')
+  await setEditor(page, 'data-editor', 'fallback,edited')
+  await expect(page.getByLabel('Current document')).toHaveText('fallback.json *')
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Save As...' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('fallback.json')
+  expect(JSON.parse(await readFile(await download.path(), 'utf8')).data).toBe('fallback,edited')
+  await expect(page.getByLabel('Current document')).toHaveText('fallback.json')
 })
 
 test('loads data and selects the first row from an older full-document file', async ({
@@ -920,7 +952,7 @@ for (const [name, data] of [
     )).toBe(JSON.stringify(document))
     await page.reload()
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Save JSON' }).click()
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
     const download = await downloadPromise
     expect(download.suggestedFilename()).toBe('label-document.json')
     const path = await download.path()
@@ -985,7 +1017,7 @@ test('surfaces JSON file read and download failures without losing data', async 
   await expect(page.locator('.notice.error')).toHaveText(
     /Could not load document: File read denied./,
   )
-  await page.getByRole('button', { name: 'Save JSON' }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.locator('.notice.error')).toHaveText(
     /Could not save document: Download unavailable/,
   )
