@@ -138,10 +138,11 @@ Class cells can appear in any column. Names are whitespace-separated; classes
 from multiple cells are combined and duplicates are removed. Empty `class:`
 cells add nothing, and the base `label` class is always retained.
 
-Column indexes and values do not change: a placeholder referencing a class cell
-still renders its original escaped value. Leave that column out of the template
-when it is only used for styling. Classes apply equally to selected-row, strip,
-wrapped preview, and printed labels.
+Column indexes do not change: a placeholder referencing a class cell renders
+empty text without a missing-column warning. For example, `Spare,class:compact`
+with `{{0}}<br>{{1}}` renders only `Spare` and the line break, while applying the
+`compact` class. The original CSV values are preserved when saving or exporting.
+Classes apply equally to selected-row, strip, wrapped preview, and printed labels.
 
 ### Font Awesome icons
 

@@ -37,29 +37,42 @@ describe('template interpolation', () => {
     expect(result.classes).toEqual(['warning', 'compact', 'extra', 'label'])
   })
 
-  it('preserves cell values, indexes, escaping, and missing-column warnings', () => {
+  it('hides class cells while preserving indexes, escaping, and missing-column warnings', () => {
     const row = ['class:warning', '<First>', 'class:compact', 'Last']
     const result = interpolateTemplate(
       '{{0}}|{{1}}|{{2}}|{{3}}|{{4}}',
       row,
     )
 
-    expect(result.html).toBe('class:warning|&lt;First&gt;|class:compact|Last|')
+    expect(result.html).toBe('|&lt;First&gt;||Last|')
     expect(result.classes).toEqual(['warning', 'compact'])
     expect(result.missingColumns).toEqual([4])
     expect(row).toEqual(['class:warning', '<First>', 'class:compact', 'Last'])
   })
 
+  it('does not render a class instruction in a shorter final row', () => {
+    const result = interpolateTemplate('{{0}}<br>{{1}}', [
+      'nezapojeno',
+      'class:small',
+    ])
+
+    expect(result.html).toBe('nezapojeno<br>')
+    expect(result.classes).toEqual(['small'])
+    expect(result.missingColumns).toEqual([])
+  })
+
   it('only recognizes the exact prefix and ignores empty class lists', () => {
-    expect(
-      interpolateTemplate('', [
-        'not class:warning',
-        'Class:warning',
-        ' class:warning',
-        'class:',
-        'class: \t ',
-      ]).classes,
-    ).toEqual([])
+    const result = interpolateTemplate('{{0}}|{{1}}|{{2}}|{{3}}|{{4}}', [
+      'not class:warning',
+      'Class:warning',
+      ' class:warning',
+      'class:',
+      'class: \t ',
+    ])
+
+    expect(result.html).toBe('not class:warning|Class:warning| class:warning||')
+    expect(result.classes).toEqual([])
+    expect(result.missingColumns).toEqual([])
     expect(interpolateTemplate('', ['normal', 'row']).classes).toEqual([])
   })
 })

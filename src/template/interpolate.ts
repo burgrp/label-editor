@@ -35,7 +35,8 @@ export function interpolateTemplate(
         missing.add(index)
         return ''
       }
-      return escapeHtml(row[index] ?? '')
+      const value = row[index] ?? ''
+      return value.startsWith('class:') ? '' : escapeHtml(value)
     },
   )
 

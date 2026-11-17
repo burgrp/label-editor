@@ -310,6 +310,45 @@ test('applies per-record classes in selected, strip, and wrapped previews', asyn
   expect(await previewInkRows(canvases)).toEqual(stripInk)
 })
 
+test('keeps class instructions out of shorter rows in every preview mode', async ({
+  page,
+}) => {
+  await page.getByLabel('Label document file', { exact: true }).setInputFiles({
+    name: 'short-row.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({
+      version: 1,
+      data: 'nezapojeno,,class:small\nnezapojeno,class:small',
+      template: '{{0}}<br>{{1}}',
+      css: [
+        '.label { width: 50.8mm; font: 14px sans-serif; }',
+        '.label.small { width: 25.4mm; }',
+      ].join('\n'),
+      previewMode: 'strip',
+      tapeWidthMm: 12,
+      threshold: 160,
+    })),
+  })
+
+  const strip = page.getByLabel('Monochrome label preview', { exact: true })
+  await expect(strip).toHaveAttribute('width', '360')
+  const stripInk = await previewInkRows(strip)
+  const expectedInk = stripInk.map((row) => row.slice(0, 180))
+  expect(expectedInk.some((row) => row.includes('1'))).toBe(true)
+  expect(stripInk.map((row) => row.slice(180))).toEqual(expectedInk)
+
+  await page.getByRole('button', { name: 'Wrapped', exact: true }).click()
+  const canvases = page.locator('.preview-tapes canvas')
+  await expect(canvases).toHaveCount(2)
+  expect(await previewInkRows(canvases.nth(0))).toEqual(expectedInk)
+  expect(await previewInkRows(canvases.nth(1))).toEqual(expectedInk)
+
+  await page.locator('#data-editor .cm-line').nth(1).click()
+  await page.getByRole('button', { name: 'Selected row', exact: true }).click()
+  await expect(strip).toHaveAttribute('width', '180')
+  expect(await previewInkRows(strip)).toEqual(expectedInk)
+})
+
 test('renders bundled solid, regular, and brand icons without network font requests', async ({
   page,
 }) => {

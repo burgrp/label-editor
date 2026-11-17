@@ -150,7 +150,7 @@ for (const mode of ['selected', 'strip'] as const) {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify({
         version: 1,
-        template: '<i class="fa-solid fa-house" aria-hidden="true"></i><span>&#xf111;</span><span class="material-symbols-rounded">home</span>',
+        template: '<i class="fa-solid fa-house" aria-hidden="true"></i><span>&#xf111;</span><span class="material-symbols-rounded">home</span>{{0}}',
         css: [
           '.label { width: 40mm; font: 20pt "Label Print Font"; }',
           '.label.compact { width: 20mm; }',
